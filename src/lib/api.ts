@@ -1,0 +1,974 @@
+// API Configuration and Service Layer
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+
+// Track if we're currently refreshing to prevent multiple simultaneous refresh attempts
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
+// Auth helpers (cookies are handled automatically by browser)
+export const isAuthenticated = (): boolean => {
+  // This will be determined by actual API calls
+  // Browser handles cookies automatically
+  return true;
+};
+
+// Get auth token (not used since we use cookies, but needed for compatibility)
+const getAuthToken = (): string => {
+  // Authentication is cookie-based, so we don't need a token
+  // This function exists for backward compatibility with upload functions
+  return '';
+};
+
+// Try to refresh access token using refresh token cookie
+async function tryRefreshToken(): Promise<boolean> {
+  // If already refreshing, wait for that refresh to complete
+  if (isRefreshing && refreshPromise) {
+    return refreshPromise;
+  }
+
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      const response = await fetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      return response.ok;
+    } catch (error) {
+      return false;
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+// API request helper with automatic cookie handling
+async function apiRequest(endpoint: string, options: RequestInit = {}) {
+  const headers: { [key: string]: string } = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    ...options,
+    headers,
+    credentials: 'include', // CRITICAL: Include cookies in requests
+  });
+
+  if (!response.ok) {
+    if (response.status === 401 && !endpoint.includes('/auth/')) {
+      // Only try to refresh if this is not an auth endpoint
+      // and we're not already on the login page
+      if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+        const refreshed = await tryRefreshToken();
+        if (refreshed) {
+          // Retry the original request
+          const retryResponse = await fetch(`${API_URL}${endpoint}`, {
+            ...options,
+            headers,
+            credentials: 'include',
+          });
+          if (retryResponse.ok) {
+            return retryResponse.json();
+          }
+        }
+      }
+    }
+
+    const error = await response.json().catch(() => ({ message: 'Request failed' }));
+    throw new Error(error.message || `HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+// Auth API
+export const authAPI = {
+  login: async (email: string, password: string) => {
+    const response = await fetch(`${API_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', // Important: include cookies
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Login failed' }));
+      throw new Error(error.message || 'Login failed');
+    }
+
+    const data = await response.json();
+
+    // Check if 2FA is required
+    if (data.requires2FA) {
+      return { requires2FA: true, tempToken: data.tempToken };
+    }
+
+    return { success: true };
+  },
+
+  signup: async (name: string, email: string, password: string) => {
+    const response = await fetch(`${API_URL}/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ name, email, password }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Signup failed' }));
+      throw new Error(error.message || 'Signup failed');
+    }
+
+    return response.json();
+  },
+
+  logout: async () => {
+    try {
+      await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      window.location.href = '/';
+    }
+  },
+
+  googleLogin: () => {
+    window.location.href = `${API_URL}/auth/google`;
+  },
+
+  verify2FA: async (email: string, token: string) => {
+    const response = await fetch(`${API_URL}/auth/verify-2fa`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email, token }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: '2FA verification failed' }));
+      throw new Error(error.message || '2FA verification failed');
+    }
+
+    return response.json();
+  },
+
+  checkStatus: async () => {
+    try {
+      const response = await fetch(`${API_URL}/auth/status`, {
+        credentials: 'include',
+      });
+      return response.ok;
+    } catch (error) {
+      return false;
+    }
+  },
+};
+
+// Teams API
+export const teamsAPI = {
+  getAll: () => apiRequest('/teams'),
+
+  getById: (id: string) => apiRequest(`/teams/${id}`),
+
+  getByTaskId: (taskId: string) => apiRequest(`/teams/task/${taskId}`),
+
+  getByProjectId: (projectId: string) => apiRequest(`/teams/project/${projectId}`),
+
+  // Note: Manual team creation is disabled - teams are auto-created from tasks/projects
+  // create: (name: string, description: string) =>
+  //   apiRequest('/teams', {
+  //     method: 'POST',
+  //     body: JSON.stringify({ name, description }),
+  //   }),
+
+  changeAdmin: (teamId: string, newAdminId: string) =>
+    apiRequest(`/teams/${teamId}/admin`, {
+      method: 'PATCH',
+      body: JSON.stringify({ newAdminId }),
+    }),
+
+  addMember: (teamId: string, userId: string, role?: string) =>
+    apiRequest(`/teams/${teamId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ userId, role }),
+    }),
+
+  removeMember: (teamId: string, userId: string) =>
+    apiRequest(`/teams/${teamId}/members/${userId}`, {
+      method: 'DELETE',
+    }),
+};
+
+// Calendar API
+export const calendarAPI = {
+  getEvents: () => apiRequest('/calendar/events'),
+
+  getUpcoming: (days: number = 7) =>
+    apiRequest(`/calendar/events/upcoming?days=${days}`),
+
+  getEventsByRange: (start: string, end: string) =>
+    apiRequest(`/calendar/events/range?start=${start}&end=${end}`),
+
+  create: (event: any) =>
+    apiRequest('/calendar/events', {
+      method: 'POST',
+      body: JSON.stringify(event),
+    }),
+
+  update: (id: string, event: any) =>
+    apiRequest(`/calendar/events/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(event),
+    }),
+
+  delete: (id: string) =>
+    apiRequest(`/calendar/events/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+// Blog API (used by /community page)
+export const blogAPI = {
+  getAll: (status?: string) =>
+    apiRequest(`/blog${status ? `?status=${status}` : ''}`),
+
+  getBySlug: (slug: string) => apiRequest(`/blog/${slug}`),
+
+  search: (query: string) => apiRequest(`/blog/search?q=${encodeURIComponent(query)}`),
+
+  create: (blog: any) =>
+    apiRequest('/blog', {
+      method: 'POST',
+      body: JSON.stringify(blog),
+    }),
+
+  update: (id: string, blog: any) =>
+    apiRequest(`/blog/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(blog),
+    }),
+
+  delete: (id: string) =>
+    apiRequest(`/blog/${id}`, {
+      method: 'DELETE',
+    }),
+
+  toggleLike: (id: string) =>
+    apiRequest(`/blog/${id}/like`, {
+      method: 'POST',
+    }),
+
+  getComments: (postId: string) => apiRequest(`/blog/${postId}/comments`),
+
+  addComment: (postId: string, content: string, parentComment?: string) =>
+    apiRequest(`/blog/${postId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ content, parentComment }),
+    }),
+
+  deleteComment: (commentId: string) =>
+    apiRequest(`/blog/comments/${commentId}`, {
+      method: 'DELETE',
+    }),
+
+  uploadImage: async (file: File) => {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const response = await fetch(`${API_URL}/blog/upload-image`, {
+      method: 'POST',
+      credentials: 'include', // Use cookie-based auth
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to upload image');
+    }
+
+    return response.json();
+  },
+};
+
+// Users API
+export const usersAPI = {
+  getMe: () => apiRequest('/users/me'),
+
+  getById: (id: string) => apiRequest(`/users/${id}`),
+
+  search: (query: string) => apiRequest(`/users/search?query=${encodeURIComponent(query)}`),
+
+  update: (id: string, updates: any) =>
+    apiRequest(`/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    }),
+};
+
+// User API (legacy, kept for backward compatibility)
+export const userAPI = {
+  getProfile: () => apiRequest('/user/profile'),
+
+  updateProfile: (updates: any) =>
+    apiRequest('/user/profile', {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    }),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    apiRequest('/user/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+
+  changeEmail: (newEmail: string, password: string) =>
+    apiRequest('/user/change-email', {
+      method: 'POST',
+      body: JSON.stringify({ newEmail, password }),
+    }),
+
+  getPreferences: () => apiRequest('/user/preferences'),
+
+  updatePreferences: (updates: any) =>
+    apiRequest('/user/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    }),
+
+  uploadAvatar: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_URL}/user/avatar`, {
+      method: 'POST',
+      credentials: 'include', // Use cookie-based auth
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to upload avatar');
+    }
+
+    return response.json();
+  },
+};
+
+// Community API
+export const communityAPI = {
+  // Learnings
+  getLearnings: (filters?: { category?: string; isPublished?: boolean }) => {
+    const params = new URLSearchParams();
+    if (filters?.category) params.append('category', filters.category);
+    if (filters?.isPublished !== undefined) params.append('isPublished', String(filters.isPublished));
+    const query = params.toString();
+    return apiRequest(`/community/learnings${query ? `?${query}` : ''}`);
+  },
+
+  getLearningById: (id: string) => apiRequest(`/community/learnings/${id}`),
+
+  createLearning: (learning: any) =>
+    apiRequest('/community/learnings', {
+      method: 'POST',
+      body: JSON.stringify(learning),
+    }),
+
+  updateLearning: (id: string, learning: any) =>
+    apiRequest(`/community/learnings/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(learning),
+    }),
+
+  deleteLearning: (id: string) =>
+    apiRequest(`/community/learnings/${id}`, {
+      method: 'DELETE',
+    }),
+
+  // References
+  getReferences: (filters?: { category?: string; isPublished?: boolean }) => {
+    const params = new URLSearchParams();
+    if (filters?.category) params.append('category', filters.category);
+    if (filters?.isPublished !== undefined) params.append('isPublished', String(filters.isPublished));
+    const query = params.toString();
+    return apiRequest(`/community/references${query ? `?${query}` : ''}`);
+  },
+
+  getReferenceById: (id: string) => apiRequest(`/community/references/${id}`),
+
+  createReference: (reference: any) =>
+    apiRequest('/community/references', {
+      method: 'POST',
+      body: JSON.stringify(reference),
+    }),
+
+  updateReference: (id: string, reference: any) =>
+    apiRequest(`/community/references/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(reference),
+    }),
+
+  deleteReference: (id: string) =>
+    apiRequest(`/community/references/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+// Tasks API
+export const tasksAPI = {
+  getAll: (status?: string) =>
+    apiRequest(`/tasks${status ? `?status=${status}` : ''}`),
+
+  getUpcoming: (days: number = 7) =>
+    apiRequest(`/tasks/upcoming?days=${days}`),
+
+  getById: (id: string) => apiRequest(`/tasks/${id}`),
+
+  create: (task: any) =>
+    apiRequest('/tasks', {
+      method: 'POST',
+      body: JSON.stringify(task),
+    }),
+
+  update: (id: string, task: any) =>
+    apiRequest(`/tasks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(task),
+    }),
+
+  markComplete: (id: string) =>
+    apiRequest(`/tasks/${id}/complete`, {
+      method: 'PATCH',
+    }),
+
+  // Legacy method name (kept for backward compatibility)
+  markAsCompleted: (id: string) =>
+    apiRequest(`/tasks/${id}/complete`, {
+      method: 'PATCH',
+    }),
+
+  delete: (id: string) =>
+    apiRequest(`/tasks/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+// Meetings API
+export const meetingsAPI = {
+  getAll: () => apiRequest('/meetings'),
+
+  getUpcoming: (days: number = 7) =>
+    apiRequest(`/meetings/upcoming?days=${days}`),
+
+  getById: (id: string) => apiRequest(`/meetings/${id}`),
+
+  getByRoomId: (roomId: string) => apiRequest(`/meetings/room/${roomId}`),
+
+  create: (meeting: any) =>
+    apiRequest('/meetings', {
+      method: 'POST',
+      body: JSON.stringify(meeting),
+    }),
+
+  update: (id: string, meeting: any) =>
+    apiRequest(`/meetings/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(meeting),
+    }),
+
+  delete: (id: string) =>
+    apiRequest(`/meetings/${id}`, {
+      method: 'DELETE',
+    }),
+
+  join: (roomId: string) =>
+    apiRequest(`/meetings/join/${roomId}`, {
+      method: 'POST',
+    }),
+};
+
+// Documents API
+export const documentsAPI = {
+  getAll: (teamId?: string) => {
+    const query = teamId ? `?teamId=${teamId}` : '';
+    return apiRequest(`/documents${query}`);
+  },
+
+  getById: (id: string) => apiRequest(`/documents/${id}`),
+
+  getByTeam: (teamId: string) => apiRequest(`/documents/team/${teamId}`),
+
+  create: (document: any) =>
+    apiRequest('/documents', {
+      method: 'POST',
+      body: JSON.stringify(document),
+    }),
+
+  update: (id: string, document: any) =>
+    apiRequest(`/documents/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(document),
+    }),
+
+  delete: (id: string) =>
+    apiRequest(`/documents/${id}`, {
+      method: 'DELETE',
+    }),
+
+  upload: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_URL}/documents/upload`, {
+      method: 'POST',
+      credentials: 'include', // Use cookie-based auth
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to upload file');
+    }
+
+    return response.json();
+  },
+};
+
+// Projects API
+export const projectsAPI = {
+  getAll: (status?: string, teamId?: string) => {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    if (teamId) params.append('teamId', teamId);
+    const query = params.toString();
+    return apiRequest(`/projects${query ? `?${query}` : ''}`);
+  },
+
+  getById: (id: string) => apiRequest(`/projects/${id}`),
+
+  getByTeam: (teamId: string) => apiRequest(`/projects/team/${teamId}`),
+
+  create: (project: any) =>
+    apiRequest('/projects', {
+      method: 'POST',
+      body: JSON.stringify(project),
+    }),
+
+  update: (id: string, project: any) =>
+    apiRequest(`/projects/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(project),
+    }),
+
+  delete: (id: string) =>
+    apiRequest(`/projects/${id}`, {
+      method: 'DELETE',
+    }),
+
+  addMember: (id: string, userId: string) =>
+    apiRequest(`/projects/${id}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    }),
+
+  removeMember: (id: string, userId: string) =>
+    apiRequest(`/projects/${id}/members/${userId}`, {
+      method: 'DELETE',
+    }),
+};
+
+// Media API
+export const mediaAPI = {
+  upload: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_URL}/media/upload`, {
+      method: 'POST',
+      credentials: 'include', // Use cookie-based auth
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to upload media');
+    }
+
+    return response.json();
+  },
+};
+
+// Messaging API
+export const messagingAPI = {
+  // Send a message
+  sendMessage: (data: {
+    receiverId: string;
+    content: string;
+    messageType?: string;
+    fileUrl?: string;
+    fileName?: string;
+  }) =>
+    apiRequest('/messages', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  // Get all conversations
+  getConversations: () => apiRequest('/messages/conversations'),
+
+  // Get conversation with a specific user
+  getConversation: (userId: string, limit?: number) => {
+    const query = limit ? `?limit=${limit}` : '';
+    return apiRequest(`/messages/conversation/${userId}${query}`);
+  },
+
+  // Mark message as read
+  markAsRead: (messageId: string) =>
+    apiRequest(`/messages/${messageId}/read`, {
+      method: 'POST',
+    }),
+
+  // Mark all messages from a user as read
+  markConversationAsRead: (userId: string) =>
+    apiRequest(`/messages/conversation/${userId}/read`, {
+      method: 'POST',
+    }),
+
+  // Delete a message
+  deleteMessage: (messageId: string) =>
+    apiRequest(`/messages/${messageId}`, {
+      method: 'DELETE',
+    }),
+
+  // Get unread message count
+  getUnreadCount: () => apiRequest('/messages/unread/count'),
+
+  // Search messages
+  searchMessages: (query: string) =>
+    apiRequest(`/messages/search?q=${encodeURIComponent(query)}`),
+};
+
+// Chat API (for /chat namespace - different from messaging)
+export const chatAPI = {
+  // Get private conversation history
+  getPrivateConversation: (userEmail: string, limit?: number) => {
+    const query = limit ? `?limit=${limit}` : '';
+    return apiRequest(`/chat/conversation/${userEmail}${query}`);
+  },
+
+  // Get group conversation history
+  getGroupConversation: (groupName: string, limit?: number) => {
+    const query = limit ? `?limit=${limit}` : '';
+    return apiRequest(`/chat/group/${groupName}${query}`);
+  },
+
+  // Get all conversations
+  getConversations: () => apiRequest('/chat/conversations'),
+
+  // Get user's groups
+  getGroups: () => apiRequest('/chat/groups'),
+
+  // Get unread message count
+  getUnreadCount: () => apiRequest('/chat/unread-count'),
+};
+
+// Dashboard API
+export const dashboardAPI = {
+  // Get comprehensive dashboard statistics
+  getStats: (params?: { month?: number; year?: number }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.month !== undefined) queryParams.append('month', String(params.month));
+    if (params?.year !== undefined) queryParams.append('year', String(params.year));
+    const query = queryParams.toString();
+    return apiRequest(`/dashboard/stats${query ? `?${query}` : ''}`);
+  },
+
+  // Get monthly activity data for the year
+  getMonthlyActivity: (year?: number) => {
+    const query = year ? `?year=${year}` : '';
+    return apiRequest(`/dashboard/monthly-activity${query}`);
+  },
+
+  // Get recent activities
+  getRecentActivities: (params?: { limit?: number; month?: number; year?: number }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.limit !== undefined) queryParams.append('limit', String(params.limit));
+    if (params?.month !== undefined) queryParams.append('month', String(params.month));
+    if (params?.year !== undefined) queryParams.append('year', String(params.year));
+    const query = queryParams.toString();
+    return apiRequest(`/dashboard/recent-activities${query ? `?${query}` : ''}`);
+  },
+
+  // Get active team members
+  getActiveMembers: (limit?: number) => {
+    const query = limit ? `?limit=${limit}` : '';
+    return apiRequest(`/dashboard/active-members${query}`);
+  },
+
+  // Get user statistics
+  getUserStats: () => apiRequest('/dashboard/user-stats'),
+
+  // Get project statistics
+  getProjectStats: () => apiRequest('/dashboard/project-stats'),
+
+  // Get task statistics
+  getTaskStats: () => apiRequest('/dashboard/task-stats'),
+};
+
+// Gmail API
+export const gmailAPI = {
+  // Gmail OAuth Authentication
+  connectGmail: () => {
+    window.location.href = `${API_URL}/gmail/auth`;
+  },
+
+  disconnectGmail: () => apiRequest('/gmail/disconnect', { method: 'POST' }),
+
+  getAuthStatus: () => apiRequest('/gmail/auth/status'),
+
+  // List emails
+  getEmails: (params?: {
+    category?: 'inbox' | 'sent' | 'drafts' | 'starred' | 'important' | 'trash' | 'spam';
+    maxResults?: number;
+    pageToken?: string;
+    q?: string; // Gmail search query
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.category) queryParams.append('category', params.category);
+    if (params?.maxResults) queryParams.append('maxResults', String(params.maxResults));
+    if (params?.pageToken) queryParams.append('pageToken', params.pageToken);
+    if (params?.q) queryParams.append('q', params.q);
+
+    const query = queryParams.toString();
+    return apiRequest(`/gmail/messages${query ? `?${query}` : ''}`);
+  },
+
+  // Get single email by ID
+  getEmailById: (id: string) => apiRequest(`/gmail/messages/${id}`),
+
+  // Send email
+  sendEmail: (email: {
+    to: string | string[];
+    cc?: string | string[];
+    bcc?: string | string[];
+    subject: string;
+    body: string;
+    isHtml?: boolean;
+    attachments?: Array<{
+      filename: string;
+      content: string; // base64 encoded
+      mimeType: string;
+    }>;
+  }) =>
+    apiRequest('/gmail/messages/send', {
+      method: 'POST',
+      body: JSON.stringify(email),
+    }),
+
+  // Reply to email
+  replyToEmail: (messageId: string, reply: {
+    body: string;
+    isHtml?: boolean;
+    attachments?: Array<{
+      filename: string;
+      content: string;
+      mimeType: string;
+    }>;
+  }) =>
+    apiRequest(`/gmail/messages/${messageId}/reply`, {
+      method: 'POST',
+      body: JSON.stringify(reply),
+    }),
+
+  // Forward email
+  forwardEmail: (messageId: string, forward: {
+    to: string | string[];
+    cc?: string | string[];
+    body?: string;
+    isHtml?: boolean;
+  }) =>
+    apiRequest(`/gmail/messages/${messageId}/forward`, {
+      method: 'POST',
+      body: JSON.stringify(forward),
+    }),
+
+  // Save draft
+  saveDraft: (draft: {
+    to?: string | string[];
+    cc?: string | string[];
+    bcc?: string | string[];
+    subject?: string;
+    body?: string;
+    isHtml?: boolean;
+  }) =>
+    apiRequest('/gmail/drafts', {
+      method: 'POST',
+      body: JSON.stringify(draft),
+    }),
+
+  // Update draft
+  updateDraft: (draftId: string, draft: {
+    to?: string | string[];
+    cc?: string | string[];
+    bcc?: string | string[];
+    subject?: string;
+    body?: string;
+    isHtml?: boolean;
+  }) =>
+    apiRequest(`/gmail/drafts/${draftId}`, {
+      method: 'PUT',
+      body: JSON.stringify(draft),
+    }),
+
+  // Delete draft
+  deleteDraft: (draftId: string) =>
+    apiRequest(`/gmail/drafts/${draftId}`, {
+      method: 'DELETE',
+    }),
+
+  // Send draft
+  sendDraft: (draftId: string) =>
+    apiRequest(`/gmail/drafts/${draftId}/send`, {
+      method: 'POST',
+    }),
+
+  // Modify email labels/actions
+  modifyEmail: (messageId: string, actions: {
+    addLabels?: string[]; // e.g., ['STARRED', 'IMPORTANT']
+    removeLabels?: string[]; // e.g., ['UNREAD', 'INBOX']
+  }) =>
+    apiRequest(`/gmail/messages/${messageId}/modify`, {
+      method: 'POST',
+      body: JSON.stringify(actions),
+    }),
+
+  // Mark as read
+  markAsRead: (messageId: string) =>
+    apiRequest(`/gmail/messages/${messageId}/modify`, {
+      method: 'POST',
+      body: JSON.stringify({ removeLabels: ['UNREAD'] }),
+    }),
+
+  // Mark as unread
+  markAsUnread: (messageId: string) =>
+    apiRequest(`/gmail/messages/${messageId}/modify`, {
+      method: 'POST',
+      body: JSON.stringify({ addLabels: ['UNREAD'] }),
+    }),
+
+  // Star email
+  starEmail: (messageId: string) =>
+    apiRequest(`/gmail/messages/${messageId}/modify`, {
+      method: 'POST',
+      body: JSON.stringify({ addLabels: ['STARRED'] }),
+    }),
+
+  // Unstar email
+  unstarEmail: (messageId: string) =>
+    apiRequest(`/gmail/messages/${messageId}/modify`, {
+      method: 'POST',
+      body: JSON.stringify({ removeLabels: ['STARRED'] }),
+    }),
+
+  // Mark as important
+  markAsImportant: (messageId: string) =>
+    apiRequest(`/gmail/messages/${messageId}/modify`, {
+      method: 'POST',
+      body: JSON.stringify({ addLabels: ['IMPORTANT'] }),
+    }),
+
+  // Unmark as important
+  unmarkAsImportant: (messageId: string) =>
+    apiRequest(`/gmail/messages/${messageId}/modify`, {
+      method: 'POST',
+      body: JSON.stringify({ removeLabels: ['IMPORTANT'] }),
+    }),
+
+  // Move to trash
+  moveToTrash: (messageId: string) =>
+    apiRequest(`/gmail/messages/${messageId}/trash`, {
+      method: 'POST',
+    }),
+
+  // Remove from trash
+  removeFromTrash: (messageId: string) =>
+    apiRequest(`/gmail/messages/${messageId}/untrash`, {
+      method: 'POST',
+    }),
+
+  // Permanently delete
+  permanentlyDelete: (messageId: string) =>
+    apiRequest(`/gmail/messages/${messageId}`, {
+      method: 'DELETE',
+    }),
+
+  // Archive email (remove from inbox)
+  archiveEmail: (messageId: string) =>
+    apiRequest(`/gmail/messages/${messageId}/modify`, {
+      method: 'POST',
+      body: JSON.stringify({ removeLabels: ['INBOX'] }),
+    }),
+
+  // Move to inbox (unarchive)
+  moveToInbox: (messageId: string) =>
+    apiRequest(`/gmail/messages/${messageId}/modify`, {
+      method: 'POST',
+      body: JSON.stringify({ addLabels: ['INBOX'] }),
+    }),
+
+  // Search emails
+  searchEmails: (query: string, maxResults: number = 50) => {
+    return apiRequest(`/gmail/messages?q=${encodeURIComponent(query)}&maxResults=${maxResults}`);
+  },
+
+  // Get labels
+  getLabels: () => apiRequest('/gmail/labels'),
+
+  // Get profile (email address, etc.)
+  getProfile: () => apiRequest('/gmail/profile'),
+
+  // Batch operations
+  batchModify: (messageIds: string[], actions: {
+    addLabels?: string[];
+    removeLabels?: string[];
+  }) =>
+    apiRequest('/gmail/messages/batch-modify', {
+      method: 'POST',
+      body: JSON.stringify({ messageIds, ...actions }),
+    }),
+
+  // Batch delete
+  batchDelete: (messageIds: string[]) =>
+    apiRequest('/gmail/messages/batch-delete', {
+      method: 'POST',
+      body: JSON.stringify({ messageIds }),
+    }),
+
+  // Batch trash
+  batchTrash: (messageIds: string[]) =>
+    apiRequest('/gmail/messages/batch-trash', {
+      method: 'POST',
+      body: JSON.stringify({ messageIds }),
+    }),
+};
+
+export default {
+  auth: authAPI,
+  teams: teamsAPI,
+  calendar: calendarAPI,
+  blog: blogAPI,
+  user: userAPI,
+  users: usersAPI,
+  community: communityAPI,
+  tasks: tasksAPI,
+  meetings: meetingsAPI,
+  documents: documentsAPI,
+  projects: projectsAPI,
+  media: mediaAPI,
+  messaging: messagingAPI,
+  chat: chatAPI,
+  dashboard: dashboardAPI,
+  gmail: gmailAPI,
+};
