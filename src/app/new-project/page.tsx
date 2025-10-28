@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'react-hot-toast';
-import { Search, Edit, Users, Calendar, RefreshCw, Settings2, PlusCircle, List, Maximize, X, Loader2 } from 'lucide-react';
+import { Search, Edit, Users, Calendar, RefreshCw, Settings2, PlusCircle, X, Loader2 } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { projectsAPI, usersAPI, userAPI } from '@/lib/api';
 import { format } from 'date-fns';
@@ -42,7 +42,7 @@ export default function NewProjectPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [showUserSearch, setShowUserSearch] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [viewMode, setViewMode] = useState<'list' | 'full'>('list'); // New state for view mode
+  const [viewMode, setViewMode] = useState<'list' | 'full'>('full'); // New state for view mode
 
   // Fetch current user on mount
   useEffect(() => {
@@ -168,7 +168,7 @@ export default function NewProjectPage() {
                 <Button
                   onClick={handleCreateProject}
                   disabled={isCreating || !title.trim()}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 sm:px-6 py-3 rounded-xl flex-1 sm:flex-none"
+                  className="bg-[#AEA1E4] hover:bg-purple-500 text-white px-4 sm:px-6 py-3 rounded-xl flex-1 sm:flex-none"
                 >
                   {isCreating ? (
                     <>

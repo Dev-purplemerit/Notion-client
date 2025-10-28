@@ -6,7 +6,6 @@ import { Sidebar } from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -17,7 +16,6 @@ import { ChangePasswordModal } from "@/components/ChangePasswordModal";
 import { ChangeEmailModal } from "@/components/ChangeEmailModal";
 import { useToast } from "@/hooks/use-toast";
 import {
-  ArrowLeft,
   Edit3,
   User,
   Shield,
@@ -629,9 +627,9 @@ export default function SettingsPage() {
         </div>
 
         {/* Body Section - Responsive flex layout */}
-        <div className="flex flex-col lg:flex-row items-start gap-4 sm:gap-6 lg:gap-8 flex-1">
+        <div className="flex flex-col lg:flex-row items-stretch gap-4 sm:gap-6 lg:gap-8 flex-1">
           {/* Settings Sidebar - Hidden on mobile, visible as tabs or fixed sidebar on desktop */}
-          <div className="bg-white w-full lg:w-64 lg:flex-shrink-0 p-4 sm:p-6 rounded-xl border border-gray-300">
+          <div className="bg-white w-full lg:w-64 lg:flex-shrink-0 h-full p-4 sm:p-6 rounded-xl border border-gray-300 flex flex-col">
             <div className="space-y-2">
               {settingsMenu.map((item) => (
                 <Button

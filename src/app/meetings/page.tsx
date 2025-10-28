@@ -214,7 +214,7 @@ const CalendarWithMeetings = ({
 };
 
 // Create Schedule Card Component
-const CreateScheduleCard = ({ onMeetingCreated }: { onMeetingCreated: () => void }) => {
+const CreateScheduleCard = ({ onMeetingCreated, onCancel }: { onMeetingCreated: () => void, onCancel: () => void }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const today = new Date().toISOString().split('T')[0];
@@ -498,7 +498,7 @@ const CreateScheduleCard = ({ onMeetingCreated }: { onMeetingCreated: () => void
           )}
 
           <div className="flex justify-end gap-4 pt-4">
-            <Button type="button" variant="outline" className="text-gray-700 font-semibold h-12 px-8 border-gray-300">
+            <Button type="button" variant="outline" className="text-gray-700 font-semibold h-12 px-8 border-gray-300" onClick={onCancel}>
               Cancel
             </Button>
             <Button type="submit" disabled={creating} className="font-semibold h-12 px-8">
@@ -583,34 +583,7 @@ const NewMeetingCard = ({
           <div className="lg:col-span-4 flex flex-col items-stretch gap-3">
             <Select>
               <SelectTrigger className="h-14 text-base rounded-xl border-gray-300">
-                <div className="flex items-center justify-center gap-2 w-full">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 7410 3900" className="w-6 h-4">
-                    <rect width="7410" height="3900" fill="#b22234"/>
-                    <path d="M0,450H7410m0,600H0m0,600H7410m0,600H0m0,600H7410m0,600H0" stroke="#fff" strokeWidth="300"/>
-                    <rect width="2964" height="2100" fill="#3c3b6e"/>
-                    <g fill="#fff">
-                      <g id="s18-main">
-                        <g id="s9-main">
-                          <g id="s5-main">
-                            <g id="s4-main">
-                              <path id="s-main" d="M247,90 317.534230,307.082039 132.873218,172.917961H361.126782L176.465770,307.082039z"/>
-                              <use xlinkHref="#s-main" y="420"/>
-                              <use xlinkHref="#s-main" y="840"/>
-                              <use xlinkHref="#s-main" y="1260"/>
-                            </g>
-                            <use xlinkHref="#s-main" y="1680"/>
-                          </g>
-                          <use xlinkHref="#s4-main" x="247" y="210"/>
-                        </g>
-                        <use xlinkHref="#s9-main" x="494"/>
-                      </g>
-                      <use xlinkHref="#s18-main" x="988"/>
-                      <use xlinkHref="#s9-main" x="1976"/>
-                      <use xlinkHref="#s5-main" x="2470"/>
-                    </g>
-                  </svg>
-                  <SelectValue placeholder="English" />
-                </div>
+                <SelectValue placeholder="English" />
               </SelectTrigger>
               <SelectContent className="bg-white">
                 <SelectItem value="en">
@@ -689,7 +662,7 @@ const NewMeetingCard = ({
             </Select>
             <Button
               onClick={onJoin}
-              className="h-12 sm:h-14 text-base sm:text-lg font-bold rounded-xl bg-purple-600 hover:bg-purple-700 text-white"
+              className="h-12 sm:h-14 text-base sm:text-lg font-bold rounded-xl bg-[#846BD2] hover:bg-purple-500 text-white"
             >
               Join Here +
             </Button>
@@ -799,10 +772,13 @@ export default function Meeting() {
               currentUser={currentUser}
             />
           ) : (
-            <CreateScheduleCard onMeetingCreated={() => {
-              fetchMeetings();
-              setShowScheduleForm(false);
-            }} />
+            <CreateScheduleCard 
+              onMeetingCreated={() => {
+                fetchMeetings();
+                setShowScheduleForm(false);
+              }}
+              onCancel={() => setShowScheduleForm(false)}
+            />
           )}
 
           {/* Recent Meetings */}

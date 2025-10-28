@@ -198,8 +198,8 @@ export default function LoginPage() {
                 >
                   <Building2 className="w-5 h-5 mr-3" />
                   <div className="flex flex-col items-start">
-                    <span className="font-medium">Microsoft Active Directory</span>
-                    <span className="text-xs subtitle-text text-gray-500">Sign in with your corporate account</span>
+                    <span className="font-medium">Google</span>
+                    <span className="text-xs subtitle-text text-gray-500">Use your google corporate account</span>
                   </div>
                 </Button>
               </a>
@@ -229,8 +229,8 @@ export default function LoginPage() {
               >
                 <Mail className="w-5 h-5 mr-3 text-gray-600" />
                 <div className="flex flex-col items-start">
-                  <span className="font-medium">Google</span>
-                  <span className="text-xs subtitle-text text-gray-500">Use your google corporate account</span>
+                  <span className="font-medium">Microsoft Active Directory</span>
+                  <span className="text-xs subtitle-text text-gray-500">Sign in with your corporate account</span>
                 </div>
               </Button>
 
@@ -284,8 +284,8 @@ export default function LoginPage() {
           className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8 lg:min-w-[720px]"
           style={{
             borderRadius: '16px',
+            border: '1px solid #E5E2FF',
             background: '#F9F6FF',
-            boxShadow: '2px 2px 10px 0 rgba(132, 107, 210, 0.15), 2px 2px 10px 0 rgba(132, 107, 210, 0.05)'
           }}
         >
           {/* Security Status Card */}

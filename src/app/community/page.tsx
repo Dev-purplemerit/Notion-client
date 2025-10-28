@@ -457,7 +457,7 @@ export default function CommunityPage() {
                                     )}
                                 </TabsContent>
 
-                                <TabsContent value="posts" className="space-y-6">
+                                <TabsContent value="posts" className="space-y-6 flex flex-col items-center">
                                     <div
                                         className="w-full max-w-2xl"
                                         style={{
@@ -555,7 +555,7 @@ export default function CommunityPage() {
                                             No posts yet. Be the first to share something!
                                         </div>
                                     ) : (
-                                        <div className="space-y-6">
+                                        <div className="space-y-6 flex flex-col items-center">
                                             {posts.map((post) => (
                                                 <div
                                                     key={post.id}
