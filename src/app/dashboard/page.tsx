@@ -6,8 +6,6 @@ import { Sidebar } from "@/components/Sidebar";
 import { TopNavigation } from "@/components/TopNavigation";
 import { ProjectList } from "@/components/ProjectList";
 
-import { Button } from "@/components/ui/button";
-
 export default function DashboardPage() {
   const [currentView, setCurrentView] = useState("dashboard");
   const router = useRouter();

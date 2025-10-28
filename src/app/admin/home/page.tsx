@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import AdminSidebar from "@/components/adminSidebar";
 import { Search, ShoppingBag, FileText, Rocket, Users, Bell, MessageSquare, ChevronDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ export default function AdminHomePage() {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const selectedYear = new Date().getFullYear();
   const [stats, setStats] = useState({
     projects: 0,
     documents: 0,
@@ -36,16 +37,50 @@ export default function AdminHomePage() {
   );
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
+  const loadMonthSpecificData = useCallback(async () => {
+    try {
+      // Fetch stats and activities for the selected month
+      const [statsData, activitiesData] = await Promise.all([
+        dashboardAPI.getStats({ month: selectedMonth, year: selectedYear }).catch((err) => {
+          console.error('Error loading stats:', err);
+          return null;
+        }),
+        dashboardAPI.getRecentActivities({ limit: 10, month: selectedMonth, year: selectedYear }).catch((err) => {
+          console.error('Error loading activities:', err);
+          return [];
+        }),
+      ]);
 
-  useEffect(() => {
-    // Reload data when month changes
-    loadMonthSpecificData();
+      if (statsData) {
+        setStats({
+          projects: statsData.monthly?.projects || 0,
+          documents: statsData.monthly?.documents || 0,
+          tasks: statsData.monthly?.tasks || 0,
+          teams: statsData.monthly?.teams || 0,
+          totalUsers: statsData.total?.users || 0,
+          newUsers: statsData.users?.newThisMonth || 0,
+          growthPercentage: statsData.users?.growthPercentage || 0,
+        });
+      } else {
+        // Keep existing stats or set to 0
+        setStats({
+          projects: 0,
+          documents: 0,
+          tasks: 0,
+          teams: 0,
+          totalUsers: 0,
+          newUsers: 0,
+          growthPercentage: 0,
+        });
+      }
+
+      setRecentActivities(activitiesData || []);
+    } catch (error: any) {
+      console.error('Error loading month-specific data:', error);
+    }
   }, [selectedMonth, selectedYear]);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -112,66 +147,16 @@ export default function AdminHomePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedYear, toast, loadMonthSpecificData]);
 
-  const loadMonthSpecificData = async () => {
-    try {
-      // Fetch stats and activities for the selected month
-      const [statsData, activitiesData] = await Promise.all([
-        dashboardAPI.getStats({ month: selectedMonth, year: selectedYear }).catch((err) => {
-          console.error('Error loading stats:', err);
-          return null;
-        }),
-        dashboardAPI.getRecentActivities({ limit: 10, month: selectedMonth, year: selectedYear }).catch((err) => {
-          console.error('Error loading activities:', err);
-          return [];
-        }),
-      ]);
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
 
-      if (statsData) {
-        setStats({
-          projects: statsData.monthly?.projects || 0,
-          documents: statsData.monthly?.documents || 0,
-          tasks: statsData.monthly?.tasks || 0,
-          teams: statsData.monthly?.teams || 0,
-          totalUsers: statsData.total?.users || 0,
-          newUsers: statsData.users?.newThisMonth || 0,
-          growthPercentage: statsData.users?.growthPercentage || 0,
-        });
-      } else {
-        // Keep existing stats or set to 0
-        setStats({
-          projects: 0,
-          documents: 0,
-          tasks: 0,
-          teams: 0,
-          totalUsers: 0,
-          newUsers: 0,
-          growthPercentage: 0,
-        });
-      }
-
-      // Format activities
-      if (activitiesData && Array.isArray(activitiesData)) {
-        const formattedActivities = activitiesData.map((activity: any) => ({
-          user: activity.user || 'Unknown User',
-          action: activity.action || 'performed an action',
-          time: formatTimeAgo(activity.time),
-        }));
-        setRecentActivities(formattedActivities);
-      } else {
-        setRecentActivities([]);
-      }
-
-    } catch (error: any) {
-      console.error('Error loading month-specific data:', error);
-      toast({
-        title: "Error Loading Data",
-        description: "Failed to load some dashboard statistics",
-        variant: "destructive",
-      });
-    }
-  };
+  useEffect(() => {
+    // Reload data when month changes
+    loadMonthSpecificData();
+  }, [loadMonthSpecificData]);
 
   const formatTimeAgo = (dateString: string) => {
     if (!dateString) return 'Recently';
@@ -248,7 +233,7 @@ export default function AdminHomePage() {
           {/* Right Section */}
           <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <img src="https://flagcdn.com/w40/in.png" alt="India" style={{ width: 24, height: 16 }} />
+              <Image src="https://flagcdn.com/w40/in.png" alt="India" width={24} height={16} />
               <span style={{ fontSize: 14 }}>English (US)</span>
               <ChevronDown size={16} />
             </div>
@@ -262,7 +247,7 @@ export default function AdminHomePage() {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               {currentUser?.avatar ? (
-                <img src={currentUser.avatar} alt={currentUser.name} style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover" }} />
+                <Image src={currentUser.avatar} alt={currentUser.name || 'User'} width={40} height={40} style={{ borderRadius: "50%", objectFit: "cover" }} />
               ) : (
                 <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#D4CCFA", display: "flex", alignItems: "center", justifyContent: "center", color: "#8B7BE8", fontWeight: 600, fontSize: 16 }}>
                   {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
@@ -399,7 +384,7 @@ export default function AdminHomePage() {
               {/* Stats Row */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 32, marginBottom: 32 }}>
                 <div>
-                  <div style={{ fontSize: 14, color: "#999", marginBottom: 8, fontWeight: 500 }}>Account's</div>
+                  <div style={{ fontSize: 14, color: "#999", marginBottom: 8, fontWeight: 500 }}>Account&apos;s</div>
                   <div style={{ fontSize: 32, fontWeight: 700, color: "#000" }}>{stats.totalUsers.toLocaleString()}</div>
                 </div>
                 <div>

@@ -2,6 +2,7 @@ export interface User {
   _id: string;
   name: string;
   email: string;
+  avatar?: string;
 }
 
 export interface Project {
@@ -21,6 +22,7 @@ export interface Task {
   createdBy: User;
   createdAt: Date | string;
   updatedAt: Date | string;
+  checklist?: Array<{ label: string; checked: boolean }>;
 }
 
 export interface CreateTaskData {
@@ -41,4 +43,5 @@ export interface UpdateTaskData {
   status?: 'todo' | 'in-progress' | 'done';
   priority?: 'low' | 'medium' | 'high';
   dueDate?: string;
+  checklist?: Array<{ label: string; checked: boolean }>;
 }

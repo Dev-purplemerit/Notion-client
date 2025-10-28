@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Sidebar } from "@/components/Sidebar";
 import {
   Search,
@@ -12,9 +12,6 @@ import {
   Plus,
   ChevronLeft,
   ChevronRight,
-  Check,
-  Bell,
-  Trash2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import AllTasksPage from "@/app/components/alltask";
@@ -35,14 +32,6 @@ const EVENT_COLORS = [
   'border-green-400 bg-green-50 text-green-700',
   'border-pink-400 bg-pink-50 text-pink-700',
 ];
-
-// Label to color mapping
-const LABEL_COLORS: Record<string, string> = {
-  'High': '#F44336',
-  'Medium': '#FF9800',
-  'Low': '#FFEB3B',
-  'Stand-by': '#00BCD4',
-};
 
 const LABEL_BG_COLORS: Record<string, string> = {
   'High': '#D9B4C7',
@@ -79,7 +68,6 @@ export default function Page() {
   const currentMonth = viewDate.toLocaleString('default', { month: 'long' });
   const currentYear = viewDate.getFullYear();
   const currentDay = viewDate.getDate();
-  const currentDayName = daysOfWeek[viewDate.getDay()];
 
   // Calendar popup state
   const [calendarDate, setCalendarDate] = useState(new Date());
@@ -206,6 +194,24 @@ export default function Page() {
   const { user } = useAuth();
   const currentUserId = user?._id;
 
+  // Get unique members from all tasks
+  const getAllTaskMembers = () => {
+    const memberIds = new Set<string>();
+    tasks.forEach((task: any) => {
+      if (task.members && Array.isArray(task.members)) {
+        task.members.forEach((memberId: string) => {
+          // Only add valid user IDs (not URLs or other invalid data)
+          if (memberId && typeof memberId === 'string' && !memberId.startsWith('http') && memberId.length === 24) {
+            memberIds.add(memberId);
+          }
+        });
+      }
+    });
+    return Array.from(memberIds).slice(0, 4); // Show max 4 avatars
+  };
+
+  const uniqueMemberIds = useMemo(() => getAllTaskMembers(), [tasks]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     if (!openMenuTaskId) return;
@@ -247,7 +253,7 @@ export default function Page() {
     };
 
     fetchAllTaskMembers();
-  }, [tasks]);
+  }, [tasks, uniqueMemberIds]);
 
   // Fetch member details when member IDs change
   useEffect(() => {
@@ -305,24 +311,6 @@ export default function Page() {
     if (diffHours < 24) return `Edited ${diffHours}h ago`;
     return `Edited ${diffDays}d ago`;
   };
-
-  // Get unique members from all tasks
-  const getAllTaskMembers = () => {
-    const memberIds = new Set<string>();
-    tasks.forEach((task: any) => {
-      if (task.members && Array.isArray(task.members)) {
-        task.members.forEach((memberId: string) => {
-          // Only add valid user IDs (not URLs or other invalid data)
-          if (memberId && typeof memberId === 'string' && !memberId.startsWith('http') && memberId.length === 24) {
-            memberIds.add(memberId);
-          }
-        });
-      }
-    });
-    return Array.from(memberIds).slice(0, 4); // Show max 4 avatars
-  };
-
-  const uniqueMemberIds = getAllTaskMembers();
 
   // Handle Share button click
   const handleShareClick = () => {
@@ -491,9 +479,9 @@ export default function Page() {
                      </div>
                 </div>
 
-                {/* Weekdays header matching grid columns */}
+                                {/* Weekdays header matching grid columns */}
                 <div className="flex items-center mb-2 shrink-0" style={{ paddingLeft: '70px' }}>
-                    {daysOfWeek.map((day, idx) => (
+                    {daysOfWeek.map((day) => (
                         <div key={day} className="text-center font-semibold" style={{ 
                             flex: 1,
                             color: '#846BD2',
@@ -504,9 +492,7 @@ export default function Page() {
                             {day}
                         </div>
                     ))}
-                </div>
-
-                {/* Calendar Grid */}
+                </div>                {/* Calendar Grid */}
                 <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-gray-200">
                     <div className="grid" style={{ 
                         gridTemplateColumns: '70px repeat(7, 1fr)', 
@@ -603,18 +589,18 @@ export default function Page() {
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', marginLeft: -4 }}>
                                       {task.members && task.members.slice(0, 3).map((member: string, idx: number) => (
-                                        <img 
+                                        <Image
                                           key={idx}
                                           src={member} 
+                                          alt="member"
+                                          title="Team member"
+                                          width={28}
+                                          height={28}
                                           style={{ 
-                                            width: 28, 
-                                            height: 28, 
                                             borderRadius: '50%', 
                                             border: `2px solid ${task.backgroundColor || '#D8D5F0'}`,
                                             marginLeft: idx > 0 ? -8 : 0
                                           }} 
-                                          alt="member"
-                                          title="Team member"
                                         />
                                       ))}
                                       {task.members && task.members.length > 3 && (
@@ -907,7 +893,7 @@ export default function Page() {
                           style={{ width: '100%', fontWeight: 700, fontSize: 22, color: '#222', border: 'none', outline: 'none', marginBottom: 8 }}
                         />
                         <div style={{ display: 'flex', alignItems: 'center', width: '100%', marginBottom: 8 }}>
-                            <span style={{ fontWeight: 500, fontSize: 15, color: '#222', marginRight: 8 }}>Invite Member's</span>
+                            <span style={{ fontWeight: 500, fontSize: 15, color: '#222', marginRight: 8 }}>Invite Member&apos;s</span>
                             <button
                               onClick={() => setShowMemberSelection(true)}
                               style={{
@@ -1198,14 +1184,14 @@ export default function Page() {
                         borderRadius: 8,
                       }}
                     >
-                      <img
+                      <Image
                         src={member}
+                        alt="member"
+                        width={32}
+                        height={32}
                         style={{
-                          width: 32,
-                          height: 32,
                           borderRadius: '50%',
                         }}
-                        alt="member"
                       />
                       <span style={{ fontSize: 13, color: '#222', fontWeight: 500 }}>
                         Member {idx + 1}

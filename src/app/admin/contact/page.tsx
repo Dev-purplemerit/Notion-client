@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import AdminSidebar from "@/components/adminSidebar";
 import {
   Search,
@@ -14,9 +15,9 @@ import {
   Loader2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { teamsAPI, usersAPI, userAPI } from "@/lib/api";
+import { userAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { getMessagingSocket, sendDirectMessage } from "@/lib/socket";
+import { getMessagingSocket } from "@/lib/socket";
 
 interface Contact {
   _id: string;
@@ -36,31 +37,7 @@ export default function ContactPage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadCurrentUser();
-    loadContacts();
-    loadFavorites();
-  }, []);
-
-  const loadCurrentUser = async () => {
-    try {
-      const user = await userAPI.getProfile();
-      setCurrentUser(user);
-
-      // Initialize messaging socket
-      if (user?._id) {
-        getMessagingSocket(user._id);
-      }
-    } catch (error) {
-      console.error('Error loading current user:', error);
-    }
-  };
-
-  useEffect(() => {
-    filterContacts();
-  }, [searchQuery, contacts]);
-
-  const loadContacts = async () => {
+  const loadContacts = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -110,9 +87,9 @@ export default function ContactPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const filterContacts = () => {
+  const filterContacts = useCallback(() => {
     if (!searchQuery.trim()) {
       setFilteredContacts(contacts);
       return;
@@ -125,7 +102,31 @@ export default function ContactPage() {
       (contact.position && contact.position.toLowerCase().includes(query))
     );
     setFilteredContacts(filtered);
+  }, [searchQuery, contacts]);
+
+  const loadCurrentUser = async () => {
+    try {
+      const user = await userAPI.getProfile();
+      setCurrentUser(user);
+
+      // Initialize messaging socket
+      if (user?._id) {
+        getMessagingSocket(user._id);
+      }
+    } catch (error) {
+      console.error('Error loading current user:', error);
+    }
   };
+
+  useEffect(() => {
+    loadCurrentUser();
+    loadContacts();
+    loadFavorites();
+  }, [loadContacts]);
+
+  useEffect(() => {
+    filterContacts();
+  }, [filterContacts]);
 
   const loadFavorites = () => {
     const savedFavorites = localStorage.getItem('adminContactFavorites');
@@ -241,7 +242,7 @@ export default function ContactPage() {
           {/* Right Section */}
           <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <img src="https://flagcdn.com/w40/in.png" alt="India" style={{ width: 24, height: 16 }} />
+              <Image src="https://flagcdn.com/w40/in.png" alt="India" width={24} height={16} />
               <span style={{ fontSize: 14 }}>English (US)</span>
               <ChevronDown size={16} />
             </div>
@@ -255,7 +256,7 @@ export default function ContactPage() {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               {currentUser?.avatar ? (
-                <img src={currentUser.avatar} alt={currentUser.name} style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover" }} />
+                <Image src={currentUser.avatar} alt={currentUser.name || 'User'} width={40} height={40} style={{ borderRadius: "50%", objectFit: "cover" }} />
               ) : (
                 <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#D4CCFA", display: "flex", alignItems: "center", justifyContent: "center", color: "#8B7BE8", fontWeight: 600, fontSize: 16 }}>
                   {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : "U"}

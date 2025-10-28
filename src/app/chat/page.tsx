@@ -11,10 +11,6 @@ import {
   Video,
   Phone,
   Search,
-  Pin,
-  Smile,
-  Paperclip,
-  Send,
   Plus,
   Loader2,
 } from "lucide-react";
@@ -547,7 +543,7 @@ export default function Chat() {
         ? [currentUser, selectedChat.name, undefined, file.name, file.type, base64Data, 'private']
         : [currentUser, undefined, DEFAULT_GROUP, file.name, file.type, base64Data, 'group'];
 
-      sendMediaFile.apply(null, params);
+      sendMediaFile(...params);
       toast({ title: "File Sent", description: `${file.name} has been sent.` });
     };
 

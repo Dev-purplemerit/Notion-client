@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Heart, MessageCircle, Share, MoreHorizontal, Play, Clock, Image as ImageIcon, X, Trash2, Send, Edit2 } from "lucide-react";
+import { Search, Heart, MessageCircle, Share, MoreHorizontal, Clock, Image as ImageIcon, X, Trash2, Send, Edit2 } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { blogAPI, userAPI, communityAPI } from "@/lib/api";
 import { useChatContext } from "@/contexts/ChatContext";
@@ -68,41 +69,7 @@ export default function CommunityPage() {
         fetchUserProfile();
     }, []);
 
-    useEffect(() => {
-        if (activeTab === "posts") {
-            loadPosts();
-        } else if (activeTab === "learnings") {
-            loadLearnings();
-        } else if (activeTab === "references") {
-            loadReferences();
-        }
-    }, [activeTab, currentUser]);
-
-    const loadLearnings = async () => {
-        try {
-            setLoadingLearnings(true);
-            const data = await communityAPI.getLearnings();
-            setLearnings(data);
-        } catch (error) {
-            console.error("Failed to load learnings:", error);
-        } finally {
-            setLoadingLearnings(false);
-        }
-    };
-
-    const loadReferences = async () => {
-        try {
-            setLoadingReferences(true);
-            const data = await communityAPI.getReferences();
-            setReferences(data);
-        } catch (error) {
-            console.error("Failed to load references:", error);
-        } finally {
-            setLoadingReferences(false);
-        }
-    };
-
-    const loadPosts = async () => {
+    const loadPosts = useCallback(async () => {
         try {
             setLoadingPosts(true);
             const data = await blogAPI.getAll('published');
@@ -148,6 +115,40 @@ export default function CommunityPage() {
             alert("Failed to load posts. Please try again later.");
         } finally {
             setLoadingPosts(false);
+        }
+    }, [currentUser]);
+
+    useEffect(() => {
+        if (activeTab === "posts") {
+            loadPosts();
+        } else if (activeTab === "learnings") {
+            loadLearnings();
+        } else if (activeTab === "references") {
+            loadReferences();
+        }
+    }, [activeTab, currentUser, loadPosts]);
+
+    const loadLearnings = async () => {
+        try {
+            setLoadingLearnings(true);
+            const data = await communityAPI.getLearnings();
+            setLearnings(data);
+        } catch (error) {
+            console.error("Failed to load learnings:", error);
+        } finally {
+            setLoadingLearnings(false);
+        }
+    };
+
+    const loadReferences = async () => {
+        try {
+            setLoadingReferences(true);
+            const data = await communityAPI.getReferences();
+            setReferences(data);
+        } catch (error) {
+            console.error("Failed to load references:", error);
+        } finally {
+            setLoadingReferences(false);
         }
     };
 
@@ -242,7 +243,7 @@ export default function CommunityPage() {
         try {
             await blogAPI.delete(postId);
             setPosts(posts.filter(post => post.id !== postId));
-        } catch (error) {
+        } catch {
             alert("Failed to delete post");
         }
     };
@@ -527,10 +528,12 @@ export default function CommunityPage() {
                                         </div>
                                         {imagePreview && (
                                             <div className="mt-3 relative inline-block">
-                                                <img
+                                                <Image
                                                     src={imagePreview}
                                                     alt="Preview"
-                                                    className="rounded-lg"
+                                                    width={400}
+                                                    height={200}
+                                                    className="rounded-lg object-contain"
                                                     style={{ maxHeight: '200px', maxWidth: '100%' }}
                                                 />
                                                 <Button
@@ -908,18 +911,20 @@ export default function CommunityPage() {
                             />
                         </div>
 
-                        {editImagePreview && (
+                        {imagePreview && (
                             <div className="relative inline-block">
-                                <img
-                                    src={editImagePreview}
+                                <Image
+                                    src={imagePreview}
                                     alt="Preview"
-                                    className="rounded-lg max-h-64 max-w-full"
+                                    width={400}
+                                    height={256}
+                                    className="rounded-lg max-h-64 max-w-full object-contain"
                                 />
                                 <Button
                                     variant="destructive"
                                     size="icon"
-                                    onClick={handleRemoveEditImage}
-                                    disabled={isUpdatingPost}
+                                    onClick={handleRemoveImage}
+                                    disabled={isCreatingPost}
                                     className="absolute top-2 right-2 h-8 w-8"
                                 >
                                     <X className="w-4 h-4" />

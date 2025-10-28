@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-export default function SuccessPage() {
+function SuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -26,5 +26,17 @@ export default function SuccessPage() {
     <main className="min-h-screen flex items-center justify-center">
       <div className="text-xl">Redirecting to dashboard...</div>
     </main>
+  );
+}
+
+export default function SuccessPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen flex items-center justify-center">
+        <div className="text-xl">Loading...</div>
+      </main>
+    }>
+      <SuccessContent />
+    </Suspense>
   );
 }

@@ -116,7 +116,7 @@ export function ChangeEmailModal({ isOpen, onClose, onSave, currentEmail }: Chan
         </div>
 
         <div style={{ fontSize: 14, color: '#7B8794' }}>
-          Enter your new email address and verify with your password. You'll need to log in with your new email after this change.
+          Enter your new email address and verify with your password. You&apos;ll need to log in with your new email after this change.
         </div>
 
         {/* Current Email Display */}

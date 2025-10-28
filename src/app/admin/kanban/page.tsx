@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import AdminSidebar from "@/components/adminSidebar";
 import {
   Search,
@@ -12,7 +13,6 @@ import {
   SquareCheckBig,
   Plus,
   MoreHorizontal,
-  Paperclip,
   Loader2,
   Calendar,
 } from "lucide-react";
@@ -83,11 +83,7 @@ export default function KanbanPage() {
     },
   ];
 
-  useEffect(() => {
-    loadKanbanData();
-  }, []);
-
-  const loadKanbanData = async () => {
+  const loadKanbanData = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -104,7 +100,7 @@ export default function KanbanPage() {
         if (projects.length > 0) {
           setProject(projects[0]);
         }
-      } catch (err) {
+      } catch {
         console.log("Could not load project data");
       }
     } catch (error: any) {
@@ -117,7 +113,11 @@ export default function KanbanPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    loadKanbanData();
+  }, [loadKanbanData]);
 
   const handleStatusChange = async (taskId: string, newStatus: string) => {
     // Find the task to preserve its data
@@ -191,15 +191,6 @@ export default function KanbanPage() {
   const getTasksForColumn = (columnStatuses: string[]) => {
     return tasks.filter(task =>
       columnStatuses.includes(task.status?.toLowerCase() || 'todo')
-    );
-  };
-
-  const getFilteredTasks = () => {
-    if (!searchQuery.trim()) return tasks;
-    const query = searchQuery.toLowerCase();
-    return tasks.filter(task =>
-      task.title.toLowerCase().includes(query) ||
-      (task.description && task.description.toLowerCase().includes(query))
     );
   };
 
@@ -327,7 +318,7 @@ export default function KanbanPage() {
           {/* Right Section */}
           <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <img src="https://flagcdn.com/w40/in.png" alt="India" style={{ width: 24, height: 16 }} />
+              <Image src="https://flagcdn.com/w40/in.png" alt="India" width={24} height={16} />
               <span style={{ fontSize: 14 }}>English (US)</span>
               <ChevronDown size={16} />
             </div>
@@ -341,7 +332,7 @@ export default function KanbanPage() {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               {currentUser?.avatar ? (
-                <img src={currentUser.avatar} alt={currentUser.name} style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover" }} />
+                <Image src={currentUser.avatar} alt={currentUser.name || 'User'} width={40} height={40} style={{ borderRadius: "50%", objectFit: "cover" }} />
               ) : (
                 <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#D4CCFA", display: "flex", alignItems: "center", justifyContent: "center", color: "#8B7BE8", fontWeight: 600, fontSize: 16 }}>
                   {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : "U"}

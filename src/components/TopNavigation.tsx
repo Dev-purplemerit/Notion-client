@@ -1,9 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ChevronDown } from "lucide-react";
-
 export const TopNavigation = () => {
   return (
     <div className="bg-white border-b border-border px-6">

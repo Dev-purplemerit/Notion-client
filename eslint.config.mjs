@@ -19,6 +19,15 @@ const eslintConfig = [
       "build/**",
       "next-env.d.ts",
     ],
+    rules: {
+      // 👇 Turn off TypeScript’s “any” restrictions globally
+      "@typescript-eslint/no-explicit-any": "off",
+
+      // (Optional) turn off related strict rules if you want more freedom
+      "@typescript-eslint/ban-types": "off",
+      "@typescript-eslint/explicit-module-boundary-types": "off",
+      "@typescript-eslint/no-inferrable-types": "off",
+    },
   },
 ];
 

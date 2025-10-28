@@ -31,6 +31,10 @@ export interface Task {
   teamId?: string; // Associated team ID
   owner?: string; // User ID of task creator
   admin?: string; // User ID of team admin
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+  checklist?: Array<{ label: string; checked: boolean }>;
+  status?: string;
 }
 
 interface TaskContextType {

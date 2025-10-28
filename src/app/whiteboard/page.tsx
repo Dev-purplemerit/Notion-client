@@ -6,12 +6,13 @@ import { Sidebar } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage } from '@/components/ui/avatar';
 import { Share, Download, Trash2 } from 'lucide-react';
+import '@excalidraw/excalidraw/index.css';
 
 // Dynamically import Excalidraw to avoid SSR issues
 const Excalidraw = dynamic(
   async () => {
-    const module = await import('@excalidraw/excalidraw');
-    return module.Excalidraw;
+    const mod = await import('@excalidraw/excalidraw');
+    return mod.Excalidraw;
   },
   {
     ssr: false,
@@ -26,11 +27,8 @@ const Excalidraw = dynamic(
 export default function WhiteboardPage() {
   const [currentView, setCurrentView] = useState("whiteboard");
   const [mounted, setMounted] = useState(false);
-
   useEffect(() => {
     setMounted(true);
-    // Import Excalidraw CSS
-    import('@excalidraw/excalidraw/index.css');
   }, []);
 
   if (!mounted) {

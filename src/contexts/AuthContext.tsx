@@ -11,6 +11,7 @@ interface User {
   role: string;
   emailVerified?: boolean;
   twoFactorEnabled?: boolean;
+  avatar?: string;
 }
 
 interface AuthContextType {

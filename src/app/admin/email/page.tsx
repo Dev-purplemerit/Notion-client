@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import AdminSidebar from "@/components/adminSidebar";
 import {
   Search,
@@ -10,30 +11,16 @@ import {
   Star,
   Edit,
   Bookmark,
-  Calendar,
   ChevronDown,
-  MoreVertical,
   Trash2,
-  Maximize2,
   X,
   MessageSquare,
   Bell,
-  Bold,
-  Italic,
-  Underline,
-  Type,
-  AlignLeft,
-  AlignRight,
-  Paperclip,
-  Image as ImageIcon,
-  MoreHorizontal,
   Loader2,
   Archive,
   Mail,
   MailOpen,
   Reply,
-  Forward,
-  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,31 +64,7 @@ export default function EmailPage() {
   // Reply form state
   const [replyBody, setReplyBody] = useState("");
 
-  useEffect(() => {
-    checkGmailAuth();
-  }, []);
-
-  useEffect(() => {
-    if (gmailConnected) {
-      loadEmails();
-    }
-  }, [activeCategory, gmailConnected]);
-
-  const checkGmailAuth = async () => {
-    try {
-      const status = await gmailAPI.getAuthStatus();
-      setGmailConnected(status.connected || false);
-      if (!status.connected) {
-        setLoading(false);
-      }
-    } catch (error) {
-      console.error("Gmail auth check failed:", error);
-      setGmailConnected(false);
-      setLoading(false);
-    }
-  };
-
-  const loadEmails = async () => {
+  const loadEmails = useCallback(async () => {
     try {
       setLoading(true);
       const categoryMap: Record<string, string> = {
@@ -133,6 +96,30 @@ export default function EmailPage() {
       });
       setEmails([]);
     } finally {
+      setLoading(false);
+    }
+  }, [activeCategory, searchQuery, selectedEmail, toast]);
+
+  useEffect(() => {
+    checkGmailAuth();
+  }, []);
+
+  useEffect(() => {
+    if (gmailConnected) {
+      loadEmails();
+    }
+  }, [gmailConnected, loadEmails]);
+
+  const checkGmailAuth = async () => {
+    try {
+      const status = await gmailAPI.getAuthStatus();
+      setGmailConnected(status.connected || false);
+      if (!status.connected) {
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error("Gmail auth check failed:", error);
+      setGmailConnected(false);
       setLoading(false);
     }
   };
@@ -320,7 +307,7 @@ export default function EmailPage() {
     if (email.payload.body?.data) {
       try {
         return atob(email.payload.body.data.replace(/-/g, "+").replace(/_/g, "/"));
-      } catch (e) {
+      } catch {
         return email.snippet || "";
       }
     }
@@ -331,7 +318,7 @@ export default function EmailPage() {
         if (part.mimeType === "text/plain" && part.body?.data) {
           try {
             return atob(part.body.data.replace(/-/g, "+").replace(/_/g, "/"));
-          } catch (e) {
+          } catch {
             continue;
           }
         }
@@ -407,7 +394,7 @@ export default function EmailPage() {
             Connect Gmail Account
           </Button>
           <p style={{ fontSize: 12, color: "#BBB", marginTop: 16 }}>
-            You'll be redirected to Google to authorize access
+            You&apos;ll be redirected to Google to authorize access
           </p>
         </div>
       </div>
@@ -465,7 +452,7 @@ export default function EmailPage() {
           {/* Right Section */}
           <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <img src="https://flagcdn.com/w40/in.png" alt="India" style={{ width: 24, height: 16 }} />
+              <Image src="https://flagcdn.com/w40/in.png" alt="India" width={24} height={16} />
               <span style={{ fontSize: 14 }}>English (US)</span>
               <ChevronDown size={16} />
             </div>

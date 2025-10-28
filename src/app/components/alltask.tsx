@@ -846,7 +846,7 @@ export default function AllTasksPage({ onClose }: AllTasksPageProps = {}) {
             style={{ width: '100%', fontWeight: 700, fontSize: 22, color: '#222', border: 'none', outline: 'none', marginBottom: 8 }}
           />
           <div style={{ display: 'flex', alignItems: 'center', width: '100%', marginBottom: 8 }}>
-            <span style={{ fontWeight: 500, fontSize: 15, color: '#222', marginRight: 8 }}>Invite Member's</span>
+            <span style={{ fontWeight: 500, fontSize: 15, color: '#222', marginRight: 8 }}>Invite Member&apos;s</span>
             <button
               onClick={() => setShowMemberSelection(true)}
               style={{

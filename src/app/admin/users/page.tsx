@@ -1,18 +1,16 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import AdminSidebar from "@/components/adminSidebar";
 import {
   Search,
-  Shield,
   User,
   Crown,
   MessageSquare,
   Bell,
   ChevronDown,
   Loader2,
-  CheckCircle,
-  XCircle,
   AlertCircle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -41,16 +39,7 @@ export default function AdminUsersPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadCurrentUser();
-    loadAllUsers();
-  }, []);
-
-  useEffect(() => {
-    filterUsers();
-  }, [searchQuery, users]);
-
-  const loadCurrentUser = async () => {
+  const loadCurrentUser = useCallback(async () => {
     try {
       const user = await userAPI.getProfile();
       setCurrentUser(user);
@@ -74,9 +63,9 @@ export default function AdminUsersPage() {
         variant: "destructive",
       });
     }
-  };
+  }, [toast]);
 
-  const loadAllUsers = async () => {
+  const loadAllUsers = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/users/admin/all`, {
@@ -100,9 +89,9 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const filterUsers = () => {
+  const filterUsers = useCallback(() => {
     if (!searchQuery.trim()) {
       setFilteredUsers(users);
       return;
@@ -116,7 +105,16 @@ export default function AdminUsersPage() {
       user.lastName?.toLowerCase().includes(query)
     );
     setFilteredUsers(filtered);
-  };
+  }, [searchQuery, users]);
+
+  useEffect(() => {
+    loadCurrentUser();
+    loadAllUsers();
+  }, [loadCurrentUser, loadAllUsers]);
+
+  useEffect(() => {
+    filterUsers();
+  }, [filterUsers]);
 
   const handleAssignAdmin = async (userId: string, userName: string) => {
     if (!confirm(`Are you sure you want to make ${userName} an admin?`)) {
@@ -276,7 +274,7 @@ export default function AdminUsersPage() {
           {/* Right Section */}
           <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <img src="https://flagcdn.com/w40/in.png" alt="India" style={{ width: 24, height: 16 }} />
+              <Image src="https://flagcdn.com/w40/in.png" alt="India" width={24} height={16} />
               <span style={{ fontSize: 14 }}>English (US)</span>
               <ChevronDown size={16} />
             </div>
@@ -290,7 +288,7 @@ export default function AdminUsersPage() {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               {currentUser?.avatar ? (
-                <img src={currentUser.avatar} alt={currentUser.name} style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover" }} />
+                <Image src={currentUser.avatar} alt={currentUser.name || 'User'} width={40} height={40} style={{ borderRadius: "50%", objectFit: "cover" }} />
               ) : (
                 <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#D4CCFA", display: "flex", alignItems: "center", justifyContent: "center", color: "#8B7BE8", fontWeight: 600, fontSize: 16 }}>
                   {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : "A"}
@@ -419,7 +417,7 @@ export default function AdminUsersPage() {
                         <td style={{ padding: "16px 12px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                             {user.avatar ? (
-                              <img src={user.avatar} alt={getUserDisplayName(user)} style={{ width: 40, height: 40, borderRadius: 8 }} />
+                              <Image src={user.avatar} alt={getUserDisplayName(user)} width={40} height={40} style={{ borderRadius: 8 }} />
                             ) : (
                               <div style={{ width: 40, height: 40, borderRadius: 8, background: "#D4CCFA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 600, color: "#8B7BE8" }}>
                                 {getInitials(user)}
