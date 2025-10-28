@@ -254,6 +254,12 @@ export default function CommunityPage() {
         try {
             const commentsData = await blogAPI.getComments(postId);
             setComments(commentsData);
+            // Update comment count in posts to reflect actual count
+            setPosts(posts.map(post =>
+                post.id === postId
+                    ? { ...post, comments: commentsData.length }
+                    : post
+            ));
         } catch (error) {
             console.error("Failed to load comments:", error);
         } finally {
@@ -459,7 +465,7 @@ export default function CommunityPage() {
 
                                 <TabsContent value="posts" className="space-y-6 flex flex-col items-center">
                                     <div
-                                        className="w-full max-w-2xl"
+                                        className="w-full lg:w-[720px]"
                                         style={{
                                             minHeight: '73px',
                                             flexShrink: 0,
@@ -559,7 +565,7 @@ export default function CommunityPage() {
                                             {posts.map((post) => (
                                                 <div
                                                     key={post.id}
-                                                    className="cursor-pointer hover:shadow-lg transition-shadow w-full max-w-2xl rounded-2xl border border-gray-200 bg-white p-4 flex flex-col gap-3"
+                                                    className="cursor-pointer hover:shadow-lg transition-shadow w-full lg:w-[720px] rounded-2xl border border-gray-200 bg-white p-4 flex flex-col gap-3"
                                                 >
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex items-center gap-3">

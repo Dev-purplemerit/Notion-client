@@ -24,7 +24,6 @@ export default function NewProjectPage() {
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
   const [description, setDescription] = useState('');
-  const [projectDetails, setProjectDetails] = useState('');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [selectedMembers, setSelectedMembers] = useState<User[]>([]);
@@ -406,7 +405,6 @@ export default function NewProjectPage() {
                 setTitle('');
                 setSummary('');
                 setDescription('');
-                setProjectDetails('');
                 setSelectedMembers([]);
                 setStartDate('');
                 setEndDate('');
@@ -415,29 +413,18 @@ export default function NewProjectPage() {
             />
           </div>
 
-          {/* Project Details Area */}
+          {/* Description */}
           <div className="relative">
+            <h3 className="text-lg font-semibold mb-3">Description</h3>
             <div className="border border-purple-200 rounded-3xl p-4 sm:p-6">
               <Textarea
-                placeholder="Start writing your project details here..."
-                value={projectDetails}
-                onChange={(e) => setProjectDetails(e.target.value)}
+                placeholder="Start writing your project description here..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
                 className="w-full border-none resize-none focus:ring-0 p-0 min-h-[200px] sm:min-h-[300px] md:min-h-[400px]"
               />
             </div>
           </div>
-
-          {/* Description */}
-          <div>
-            <h3 className="text-lg font-semibold mb-2">Description</h3>
-            <Textarea
-              placeholder="Add a detailed description..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="border-gray-200 focus:ring-purple-500"
-              rows={4}
-            />
-            </div>
           </main>
       </div>
     </AppLayout>
