@@ -317,7 +317,7 @@ export default function Chat() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Use ChatContext
-  const { chitChatChats, teamChats, addChitChat, addTeamChat, messages: contextMessages, addMessage: addMessageToContext, setMessagesForChat } = useChatContext();
+  const { chitChatChats, teamChats, addChitChat, addTeamChat, messages: contextMessages, addMessage: addMessageToContext, setMessagesForChat, markChatAsRead } = useChatContext();
 
   const [currentView, setCurrentView] = useState("chat");
   const [message, setMessage] = useState("");
@@ -700,6 +700,9 @@ export default function Chat() {
 
   const handleSelectChat = async (chat: Chat) => {
     setSelectedChat(chat);
+    
+    // Mark chat as read
+    markChatAsRead(chat.name);
     
     // Load messages from context first (for immediate display)
     setMessages(contextMessages[chat.name] || []);

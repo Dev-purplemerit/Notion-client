@@ -154,13 +154,6 @@ const ProjectListView = ({
         ) : projects.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
             <p className="text-lg mb-4">No projects yet</p>
-            <Button
-              onClick={() => router.push('/new-project')}
-              className="bg-purple-600 hover:bg-purple-700 text-white"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Create Your First Project
-            </Button>
           </div>
         ) : (
           <div

@@ -35,6 +35,9 @@ interface ChatContextType {
   addTeamChat: (chat: Chat) => void;
   addMessage: (chatName: string, message: Message) => void;
   setMessagesForChat: (chatName: string, messages: Message[]) => void;
+  unreadCounts: { [chatName: string]: number };
+  markChatAsRead: (chatName: string) => void;
+  getTotalUnreadCount: () => number;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -51,6 +54,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
   const [chitChatChats, setChitChatChats] = useState<Chat[]>([]);
   const [teamChats, setTeamChats] = useState<Chat[]>([]);
   const [messages, setMessages] = useState<{ [chatName: string]: Message[] }>({});
+  const [unreadCounts, setUnreadCounts] = useState<{ [chatName: string]: number }>({});
   const { toast } = useToast();
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
 
@@ -59,6 +63,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const savedChitChats = localStorage.getItem('chitChatChats');
     const savedTeamChats = localStorage.getItem('teamChats');
     const savedMessages = localStorage.getItem('chatMessages');
+    const savedUnreadCounts = localStorage.getItem('unreadCounts');
 
     if (savedChitChats) {
       setChitChatChats(JSON.parse(savedChitChats));
@@ -68,6 +73,9 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     }
     if (savedMessages) {
       setMessages(JSON.parse(savedMessages));
+    }
+    if (savedUnreadCounts) {
+      setUnreadCounts(JSON.parse(savedUnreadCounts));
     }
 
     usersAPI.getMe().then((user: any) => {
@@ -89,6 +97,10 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     localStorage.setItem('chatMessages', JSON.stringify(messages));
   }, [messages]);
+
+  useEffect(() => {
+    localStorage.setItem('unreadCounts', JSON.stringify(unreadCounts));
+  }, [unreadCounts]);
 
   useEffect(() => {
     if (!currentUserEmail) return;
@@ -127,7 +139,16 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const handleIncomingMessage = (data: ChatMessage) => {
         const chatName = data.groupName || (data.sender === currentUserEmail ? data.receiver : data.sender);
         if (chatName) {
-            addMessage(chatName, createMessage(data, data.sender === currentUserEmail));
+            const message = createMessage(data, data.sender === currentUserEmail);
+            addMessage(chatName, message);
+            
+            // Increment unread count if message is not from current user
+            if (data.sender !== currentUserEmail) {
+                setUnreadCounts(prev => ({
+                    ...prev,
+                    [chatName]: (prev[chatName] || 0) + 1,
+                }));
+            }
         }
     };
 
@@ -136,7 +157,16 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     socket.on('mediaMessage', (data: ChatMessage) => {
         const chatName = data.groupName || (data.sender === currentUserEmail ? data.receiver : data.sender);
         if (chatName) {
-            addMessage(chatName, createMessage({ ...data, isMedia: true }, data.sender === currentUserEmail));
+            const message = createMessage({ ...data, isMedia: true }, data.sender === currentUserEmail);
+            addMessage(chatName, message);
+            
+            // Increment unread count if message is not from current user
+            if (data.sender !== currentUserEmail) {
+                setUnreadCounts(prev => ({
+                    ...prev,
+                    [chatName]: (prev[chatName] || 0) + 1,
+                }));
+            }
         }
     });
 
@@ -196,6 +226,17 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
+  const markChatAsRead = (chatName: string) => {
+    setUnreadCounts(prev => ({
+      ...prev,
+      [chatName]: 0,
+    }));
+  };
+
+  const getTotalUnreadCount = (): number => {
+    return Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
+  };
+
   return (
     <ChatContext.Provider
       value={{
@@ -206,6 +247,9 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         addTeamChat,
         addMessage,
         setMessagesForChat,
+        unreadCounts,
+        markChatAsRead,
+        getTotalUnreadCount,
       }}
     >
       {children}

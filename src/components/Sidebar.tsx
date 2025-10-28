@@ -22,6 +22,7 @@ import {
   CheckSquare,
   FileText,
 } from "lucide-react";
+import { useChatContext } from "@/contexts/ChatContext";
 
 interface SidebarProps {
   currentView?: string;
@@ -31,7 +32,7 @@ interface SidebarProps {
 // --- CONSTANTS for menu items ---
 const menuItems = [
   { id: "home", label: "Home", icon: Home },
-  { id: "chat", label: "Chat", icon: MessageCircle, badge: "12" },
+  { id: "chat", label: "Chat", icon: MessageCircle },
 ];
 
 const collaborationItems = [
@@ -53,6 +54,7 @@ const accountItems = [
 export const Sidebar = ({ currentView, onViewChange }: SidebarProps) => {
   const router = useRouter();
   const pathname = usePathname();
+  const { getTotalUnreadCount } = useChatContext();
 
   const [expandedSections, setExpandedSections] = useState<{
     [key: string]: boolean;
@@ -119,7 +121,10 @@ export const Sidebar = ({ currentView, onViewChange }: SidebarProps) => {
           </h3>
           <div className="space-y-1">
             {menuItems.map((item) => {
-              const isActive = pathname === `/${item.id}` || (item.id === 'home' && pathname === '/');
+              const isActive = pathname === `/${item.id}` || 
+                               (item.id === 'home' && (pathname === '/' || pathname === '/dashboard'));
+              const unreadCount = item.id === 'chat' ? getTotalUnreadCount() : 0;
+              
               return (
                 <Button
                   key={item.id}
@@ -147,12 +152,12 @@ export const Sidebar = ({ currentView, onViewChange }: SidebarProps) => {
                 >
                   <item.icon size={18} className="mr-3" />
                   <span className="flex-1 text-left">{item.label}</span>
-                  {item.badge && (
+                  {item.id === 'chat' && unreadCount > 0 && (
                     <Badge
                       variant="secondary"
                       className="ml-auto bg-primary text-primary-foreground"
                     >
-                      {item.badge}
+                      {unreadCount}
                     </Badge>
                   )}
                 </Button>
