@@ -1,9 +1,9 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { getChatSocket, setAuthErrorCallback, resetChatSocket, type ChatMessage } from "@/lib/socket";
 import { useToast } from "@/hooks/use-toast";
-import { usersAPI } from "@/lib/api";
+import { usersAPI, chatAPI } from "@/lib/api";
 
 export interface Chat {
   name: string;
@@ -102,8 +102,64 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('unreadCounts', JSON.stringify(unreadCounts));
   }, [unreadCounts]);
 
+  const addChitChat = useCallback((chat: Chat) => {
+    setChitChatChats(prev => {
+      // Check if chat already exists
+      if (prev.some(c => c.name === chat.name)) {
+        return prev;
+      }
+      return [...prev, chat];
+    });
+  }, []);
+
+  const addMessage = useCallback((chatName: string, message: Message) => {
+    setMessages(prev => ({
+      ...prev,
+      [chatName]: [...(prev[chatName] || []), message],
+    }));
+  }, []);
+
   useEffect(() => {
     if (!currentUserEmail) return;
+
+    const fetchConversations = async () => {
+      try {
+        const response = await chatAPI.getConversations();
+        if (response.success) {
+          const conversations = response.conversations.map((conv: any) => ({
+            name: conv.partner,
+            role: 'User',
+            time: new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            status: 'offline', // You might want to manage online status separately
+            avatar: `https://i.pravatar.cc/150?u=${conv.partner}`,
+          }));
+          setChitChatChats(conversations);
+
+          // Also, populate the messages with the last message
+          const newMessages: { [chatName: string]: Message[] } = {};
+          response.conversations.forEach((conv: any) => {
+            newMessages[conv.partner] = [{
+              id: conv.lastMessage._id,
+              sender: conv.lastMessage.sender,
+              content: conv.lastMessage.text,
+              time: new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              avatar: `https://i.pravatar.cc/150?u=${conv.lastMessage.sender}`,
+              isOwn: conv.lastMessage.sender === currentUserEmail,
+            }];
+          });
+          setMessages(newMessages);
+        }
+      } catch (error) {
+        console.error("Failed to fetch conversations", error);
+        toast({
+          title: "Error",
+          description: "Failed to load your conversations.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    fetchConversations();
 
     resetChatSocket();
 
@@ -141,13 +197,27 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         if (chatName) {
             const message = createMessage(data, data.sender === currentUserEmail);
             addMessage(chatName, message);
-            
+
             // Increment unread count if message is not from current user
             if (data.sender !== currentUserEmail) {
                 setUnreadCounts(prev => ({
                     ...prev,
                     [chatName]: (prev[chatName] || 0) + 1,
                 }));
+            }
+
+            // Create new chat if it doesn't exist
+            if (data.mode === 'private' && data.sender !== currentUserEmail) {
+                const chatExists = chitChatChats.some(chat => chat.name === chatName);
+                if (!chatExists) {
+                    addChitChat({
+                        name: chatName,
+                        role: 'New Chat',
+                        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        status: 'online',
+                        avatar: `https://i.pravatar.cc/150?u=${chatName}`,
+                    });
+                }
             }
         }
     };
@@ -190,17 +260,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       socket.off('mediaMessage');
       socket.off('error');
     };
-  }, [currentUserEmail, toast]);
-
-  const addChitChat = (chat: Chat) => {
-    setChitChatChats(prev => {
-      // Check if chat already exists
-      if (prev.some(c => c.name === chat.name)) {
-        return prev;
-      }
-      return [...prev, chat];
-    });
-  };
+  }, [currentUserEmail, toast, chitChatChats, addMessage, addChitChat]);
 
   const addTeamChat = (chat: Chat) => {
     setTeamChats(prev => {
@@ -210,13 +270,6 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       }
       return [...prev, chat];
     });
-  };
-
-  const addMessage = (chatName: string, message: Message) => {
-    setMessages(prev => ({
-      ...prev,
-      [chatName]: [...(prev[chatName] || []), message],
-    }));
   };
 
   const setMessagesForChat = (chatName: string, msgs: Message[]) => {
