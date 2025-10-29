@@ -578,6 +578,27 @@ export const projectsAPI = {
     apiRequest(`/projects/${id}/members/${userId}`, {
       method: 'DELETE',
     }),
+
+  // Project Tasks
+  createTask: (projectId: string, task: any) =>
+    apiRequest(`/projects/${projectId}/tasks`, {
+      method: 'POST',
+      body: JSON.stringify(task),
+    }),
+
+  getProjectTasks: (projectId: string) =>
+    apiRequest(`/projects/${projectId}/tasks`),
+
+  updateTask: (projectId: string, taskId: string, task: any) =>
+    apiRequest(`/projects/${projectId}/tasks/${taskId}`, {
+      method: 'PUT',
+      body: JSON.stringify(task),
+    }),
+
+  deleteTask: (projectId: string, taskId: string) =>
+    apiRequest(`/projects/${projectId}/tasks/${taskId}`, {
+      method: 'DELETE',
+    }),
 };
 
 // Media API

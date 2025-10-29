@@ -11,7 +11,7 @@ import { Search, Share, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTasks } from "@/contexts/TaskContext";
 import { MemberSelectionModal } from "@/components/MemberSelectionModal";
 import { useAuth } from "@/contexts/AuthContext";
-import { usersAPI } from "@/lib/api";
+import { usersAPI, projectsAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import AllTaskSidebar from "@/components/AllTaskSidebar";
 
@@ -236,6 +236,48 @@ export default function AllTasksPage({ onClose }: AllTasksPageProps = {}) {
       });
       setShowShareModal(false);
       setTaskToShare(null);
+    }
+  };
+
+  // Handle marking task as complete
+  const handleMarkComplete = async (task: any, checked: boolean) => {
+    try {
+      const newStatus = checked ? 'completed' : 'todo';
+      
+      // Update in calendar/teams task system
+      await addTask({ ...task, status: newStatus });
+      
+      // If task has projectId, also update in project tasks
+      if (task.projectId) {
+        try {
+          await projectsAPI.updateTask(task.projectId, task._id, {
+            taskStatus: checked ? 'Completed' : 'To Be Done',
+          });
+          toast({
+            title: "Success",
+            description: checked ? "Task marked as completed" : "Task marked as incomplete",
+          });
+        } catch (error) {
+          console.error('Failed to update project task:', error);
+          toast({
+            title: "Partial Success",
+            description: "Task updated in calendar but failed to sync with project",
+            variant: "destructive",
+          });
+        }
+      } else {
+        toast({
+          title: "Success",
+          description: checked ? "Task marked as completed" : "Task marked as incomplete",
+        });
+      }
+    } catch (error) {
+      console.error('Failed to update task:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update task status",
+        variant: "destructive",
+      });
     }
   };
 
@@ -607,6 +649,7 @@ export default function AllTasksPage({ onClose }: AllTasksPageProps = {}) {
                           const endTime = task.startTime + task.duration;
                           const endHour = Math.floor(endTime);
                           const endMin = Math.round((endTime - endHour) * 60);
+                          const isCompleted = task.status === 'completed';
                           
                           return (
                             <div 
@@ -617,15 +660,25 @@ export default function AllTasksPage({ onClose }: AllTasksPageProps = {}) {
                                 padding: '20px 24px',
                                 marginBottom: 16,
                                 border: '1px solid #E8E6F9',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                opacity: isCompleted ? 0.7 : 1,
                               }}
                               onClick={() => setSelectedTask(task)}
                             >
                               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                  <Checkbox />
+                                  <Checkbox 
+                                    checked={isCompleted}
+                                    onCheckedChange={(checked) => handleMarkComplete(task, checked as boolean)}
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
                                   <div>
-                                    <span style={{ fontSize: 16, fontWeight: 600, color: '#222' }}>{task.title}</span>
+                                    <span style={{ 
+                                      fontSize: 16, 
+                                      fontWeight: 600, 
+                                      color: '#222',
+                                      textDecoration: isCompleted ? 'line-through' : 'none',
+                                    }}>{task.title}</span>
                                     {task.label && (
                                       <span style={{
                                         marginLeft: 8,
@@ -704,6 +757,7 @@ export default function AllTasksPage({ onClose }: AllTasksPageProps = {}) {
                           const endTime = task.startTime + task.duration;
                           const endHour = Math.floor(endTime);
                           const endMin = Math.round((endTime - endHour) * 60);
+                          const isCompleted = task.status === 'completed';
                           
                           return (
                             <div 
@@ -714,15 +768,25 @@ export default function AllTasksPage({ onClose }: AllTasksPageProps = {}) {
                                 padding: '20px 24px',
                                 marginBottom: 16,
                                 border: '1px solid #E8E6F9',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                opacity: isCompleted ? 0.7 : 1,
                               }}
                               onClick={() => setSelectedTask(task)}
                             >
                               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                  <Checkbox />
+                                  <Checkbox 
+                                    checked={isCompleted}
+                                    onCheckedChange={(checked) => handleMarkComplete(task, checked as boolean)}
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
                                   <div>
-                                    <span style={{ fontSize: 16, fontWeight: 600, color: '#222' }}>{task.title}</span>
+                                    <span style={{ 
+                                      fontSize: 16, 
+                                      fontWeight: 600, 
+                                      color: '#222',
+                                      textDecoration: isCompleted ? 'line-through' : 'none',
+                                    }}>{task.title}</span>
                                     {task.label && (
                                       <span style={{
                                         marginLeft: 8,

@@ -19,7 +19,7 @@ import { useTasks } from "@/contexts/TaskContext";
 import { MemberSelectionModal } from "@/components/MemberSelectionModal";
 import { EditTaskModal } from "@/components/EditTaskModal";
 import { ChangeAdminModal } from "@/components/ChangeAdminModal";
-import { usersAPI } from "@/lib/api";
+import { usersAPI, projectsAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 
 const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -182,10 +182,15 @@ export default function Page() {
     endTime: '',
     day: 'Monday',
     label: 'Medium' as 'High' | 'Medium' | 'Low' | 'Stand-by',
-    members: [] as string[]
+    members: [] as string[],
+    projectId: '' // Add project ID
   });
   const [openMenuTaskId, setOpenMenuTaskId] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // Projects state
+  const [allProjects, setAllProjects] = useState<any[]>([]);
+  const [selectedProjectForTask, setSelectedProjectForTask] = useState<string>('');
 
   // Use shared task context
   const { tasks, loading, addTask, deleteTask, updateTask, changeAdmin } = useTasks();
@@ -254,6 +259,19 @@ export default function Page() {
 
     fetchAllTaskMembers();
   }, [tasks, uniqueMemberIds]);
+
+  // Fetch all projects
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const projectsData = await projectsAPI.getAll();
+        setAllProjects(projectsData);
+      } catch (error) {
+        console.error('Failed to fetch projects:', error);
+      }
+    };
+    fetchProjects();
+  }, []);
 
   // Fetch member details when member IDs change
   useEffect(() => {
@@ -898,6 +916,36 @@ export default function Page() {
                           onChange={(e) => setNewTask({...newTask, title: e.target.value})}
                           style={{ width: '100%', fontWeight: 700, fontSize: 22, color: '#222', border: 'none', outline: 'none', marginBottom: 8 }}
                         />
+                        
+                        {/* Project Selection */}
+                        <div style={{ width: '100%', marginBottom: 8 }}>
+                          <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#7B8794', marginBottom: 4 }}>
+                            Select Project
+                          </label>
+                          <select
+                            value={selectedProjectForTask}
+                            onChange={(e) => setSelectedProjectForTask(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '10px 12px',
+                              border: '1px solid #E0E0E0',
+                              borderRadius: 8,
+                              fontSize: 15,
+                              fontWeight: 500,
+                              color: '#222',
+                              outline: 'none',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <option value="">No Project (Optional)</option>
+                            {allProjects.map((project) => (
+                              <option key={project._id} value={project._id}>
+                                {project.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        
                         <div style={{ display: 'flex', alignItems: 'center', width: '100%', marginBottom: 8 }}>
                             <span style={{ fontWeight: 500, fontSize: 15, color: '#222', marginRight: 8 }}>Invite Member&apos;s</span>
                             <button
@@ -1055,9 +1103,10 @@ export default function Page() {
                         <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
                             <button onClick={() => {
                               setShowCreateTask(false);
-                              setNewTask({ title: '', description: '', date: '', startTime: '', endTime: '', day: 'Monday', label: 'Medium', members: ['https://i.pravatar.cc/32?u=a', 'https://i.pravatar.cc/32?u=b', 'https://i.pravatar.cc/32?u=c'] });
+                              setNewTask({ title: '', description: '', date: '', startTime: '', endTime: '', day: 'Monday', label: 'Medium', members: [], projectId: '' });
+                              setSelectedProjectForTask('');
                             }} style={{ background: '#FFF', color: '#222', fontWeight: 600, fontSize: 15, border: '1.5px solid #B39DDB', borderRadius: 12, padding: '10px 24px', cursor: 'pointer' }}>Discard</button>
-                            <button onClick={() => {
+                            <button onClick={async () => {
                               if (newTask.title && newTask.startTime && newTask.endTime) {
                                 const [startHour, startMin] = newTask.startTime.split(':').map(Number);
                                 const [endHour, endMin] = newTask.endTime.split(':').map(Number);
@@ -1065,7 +1114,7 @@ export default function Page() {
                                 const endTimeDecimal = endHour + endMin / 60;
                                 const duration = endTimeDecimal - startTimeDecimal;
                                 
-                                addTask({
+                                const taskData = {
                                   title: newTask.title,
                                   description: newTask.description,
                                   day: newTask.day,
@@ -1073,10 +1122,36 @@ export default function Page() {
                                   duration: duration,
                                   label: newTask.label,
                                   members: newTask.members
-                                });
+                                };
+                                
+                                addTask(taskData);
+                                
+                                // If project is selected, create task via API
+                                if (selectedProjectForTask) {
+                                  try {
+                                    await projectsAPI.createTask(selectedProjectForTask, {
+                                      title: newTask.title,
+                                      description: newTask.description,
+                                      taskStatus: 'To Be Done',
+                                      priority: newTask.label || 'Medium',
+                                      timeTracker: 'Start',
+                                      startDate: newTask.date,
+                                      day: newTask.day,
+                                      startTime: startTimeDecimal,
+                                      duration: duration,
+                                    });
+                                    toast({ title: "Success", description: `Task added to project and calendar` });
+                                  } catch (error) {
+                                    console.error('Failed to create project task:', error);
+                                    toast({ title: "Warning", description: "Task added to calendar but failed to add to project", variant: "destructive" });
+                                  }
+                                } else {
+                                  toast({ title: "Success", description: "Task added to calendar" });
+                                }
                                 
                                 setShowCreateTask(false);
-                                setNewTask({ title: '', description: '', date: '', startTime: '', endTime: '', day: 'Monday', label: 'Medium', members: ['https://i.pravatar.cc/32?u=a', 'https://i.pravatar.cc/32?u=b', 'https://i.pravatar.cc/32?u=c'] });
+                                setNewTask({ title: '', description: '', date: '', startTime: '', endTime: '', day: 'Monday', label: 'Medium', members: [], projectId: '' });
+                                setSelectedProjectForTask('');
                               } else {
                                 toast({ title: "Missing Information", description: "Please fill in title and time", variant: "destructive" });
                               }

@@ -360,72 +360,22 @@ export default function Chat() {
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
 
   const addMessage = (msg: Message) => {
-    setMessages(prev => [...prev, msg]);
-
-    // Save to context if we have a selected chat
+    // Don't add to local state - let context handle it and the useEffect will update local state
+    // This prevents duplicate messages
     if (selectedChat) {
-      addMessageToContext(selectedChat.name, msg);
+      const chatKey = selectedChat.name;
+      addMessageToContext(chatKey, msg);
     }
-
-    scrollToBottom();
   };
 
   // Socket Effects
   useEffect(() => {
-    // With cookie-based auth, no need to check for token manually
-    // Cookies are sent automatically with WebSocket connection
-
-    // Reset any existing socket connection to ensure fresh connection
-    resetChatSocket();
-
-    // Set up auth error callback before connecting
-    setAuthErrorCallback((error) => {
-      console.error('Authentication error:', error);
-      toast({
-        title: "Authentication Failed",
-        description: error.message + " Please login again.",
-        variant: "destructive",
-        duration: 5000,
-      });
-
-      // Redirect to login after a short delay
-      setTimeout(() => {
-        // Cookies are cleared on backend during logout
-        window.location.href = '/';
-      }, 2000);
-    });
-
     // Fetch the actual user email
     import('@/lib/api').then(({ usersAPI }) => {
       usersAPI.getMe().then((user: any) => {
         setCurrentUser(user.email);
 
         const socket = getChatSocket();
-
-        const handleIncomingMessage = (data: ChatMessage) => {
-          addMessage(createMessage(data, data.sender === user.email));
-        };
-
-        socket.on('message', handleIncomingMessage);
-        socket.on('groupMessage', handleIncomingMessage);
-        socket.on('mediaMessage', (data: ChatMessage) => {
-          addMessage(createMessage({ ...data, isMedia: true }, data.sender === user.email));
-        });
-        socket.on('error', (error: string | { message: string; code: string; requiresLogin?: boolean }) => {
-          if (typeof error === 'string') {
-            toast({ title: "Chat Error", description: error, variant: "destructive" });
-          } else if (error.requiresLogin) {
-            // Auth errors are handled by the authErrorCallback
-            // This is just in case the callback wasn't set
-            toast({
-              title: "Authentication Failed",
-              description: error.message,
-              variant: "destructive",
-            });
-          } else {
-            toast({ title: "Chat Error", description: error.message, variant: "destructive" });
-          }
-        });
 
         // Call event listeners
         socket.on('call:incoming', async (data: { caller: string; offer: any; callType: 'audio' | 'video' }) => {
@@ -498,10 +448,6 @@ export default function Chat() {
 
         // Cleanup listeners on unmount
         return () => {
-          socket.off('message');
-          socket.off('groupMessage');
-          socket.off('mediaMessage');
-          socket.off('error');
           socket.off('call:incoming');
           socket.off('call:answered');
           socket.off('call:iceCandidate');
@@ -513,15 +459,32 @@ export default function Chat() {
     });
   }, [toast, peerConnection]);
 
+  // Update local messages when context messages change for selected chat
+  useEffect(() => {
+    if (selectedChat) {
+      const chatKey = selectedChat.name;
+      const contextMsgs = contextMessages[chatKey] || [];
+      setMessages(contextMsgs);
+      scrollToBottom();
+    }
+  }, [contextMessages, selectedChat]);
+
   // Handlers
   const handleSendMessage = () => {
-    if (!message.trim()) return;
+    if (!message.trim() || !selectedChat) return;
 
-    const sendFn = selectedChat ? sendPrivateMessage : sendGroupMessage;
-    const recipient = selectedChat ? selectedChat.name : DEFAULT_GROUP;
-
-    sendFn(currentUser, recipient, message);
-    addMessage(createMessage({ sender: currentUser, text: message } as ChatMessage, true));
+    const chatKey = selectedChat.name;
+    const isGroup = selectedChat.type === 'TEAM' || teamChats.some(t => t.name === selectedChat.name);
+    
+    if (isGroup) {
+      sendGroupMessage(currentUser, chatKey, message);
+    } else {
+      sendPrivateMessage(currentUser, chatKey, message);
+    }
+    
+    // Create message for immediate display
+    const newMsg = createMessage({ sender: currentUser, text: message, receiver: chatKey } as ChatMessage, true);
+    addMessage(newMsg);
     setMessage("");
   };
 
@@ -701,20 +664,25 @@ export default function Chat() {
   const handleSelectChat = async (chat: Chat) => {
     setSelectedChat(chat);
     
+    // Use the chat name as the key (which is the email for direct chats)
+    const chatKey = chat.name;
+    
     // Mark chat as read
-    markChatAsRead(chat.name);
+    markChatAsRead(chatKey);
     
     // Load messages from context first (for immediate display)
-    setMessages(contextMessages[chat.name] || []);
+    setMessages(contextMessages[chatKey] || []);
     
     // Then fetch message history from backend
     try {
-      const isGroup = chat.type === 'group' || teamChats.some(t => t.name === chat.name);
+      // Check if it's a team/group chat
+      const isGroup = chat.type === 'TEAM' || teamChats.some(t => t.name === chat.name);
       
       let response;
       if (isGroup) {
         response = await chatAPI.getGroupConversation(chat.name, 100);
       } else {
+        // For direct chats, chat.name is the other user's email
         response = await chatAPI.getPrivateConversation(chat.name, 100);
       }
       
@@ -734,7 +702,7 @@ export default function Chat() {
         }));
         
         // Update context with loaded messages
-        setMessagesForChat(chat.name, loadedMessages);
+        setMessagesForChat(chatKey, loadedMessages);
         setMessages(loadedMessages);
       }
     } catch (error) {

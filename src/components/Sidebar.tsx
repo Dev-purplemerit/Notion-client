@@ -113,7 +113,7 @@ export const Sidebar = ({ currentView, onViewChange }: SidebarProps) => {
       <div className="w-full" style={{ paddingLeft: '24px', paddingRight: '24px' }}>
         <div className="h-8 flex items-center justify-between w-full">
           {!isCollapsed && (
-            <span className="text-2xl font-bold text-primary">TaskHub</span>
+            <span className="text-2xl font-bold text-primary">Purple Merit</span>
           )}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}

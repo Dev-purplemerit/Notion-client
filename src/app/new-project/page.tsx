@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'react-hot-toast';
-import { Search, Edit, RefreshCw, X, Loader2 } from 'lucide-react';
+import { Search, Edit, RefreshCw, X, Loader2, Plus, Trash2 } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { projectsAPI, usersAPI, userAPI } from '@/lib/api';
 import { format } from 'date-fns';
@@ -17,6 +17,12 @@ interface User {
   name: string;
   email: string;
   avatar?: string;
+}
+
+interface TodoTask {
+  id: string;
+  title: string;
+  completed: boolean;
 }
 
 export default function NewProjectPage() {
@@ -35,6 +41,10 @@ export default function NewProjectPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [showUserSearch, setShowUserSearch] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  
+  // Todo tasks state
+  const [todoTasks, setTodoTasks] = useState<TodoTask[]>([]);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
 
   // Fetch current user on mount
   useEffect(() => {
@@ -85,6 +95,35 @@ export default function NewProjectPage() {
     setSelectedMembers(selectedMembers.filter((m) => m._id !== userId));
   };
 
+  // Add todo task
+  const handleAddTask = () => {
+    if (!newTaskTitle.trim()) {
+      toast.error('Please enter a task title');
+      return;
+    }
+    const newTask: TodoTask = {
+      id: Date.now().toString(),
+      title: newTaskTitle,
+      completed: false,
+    };
+    setTodoTasks([...todoTasks, newTask]);
+    setNewTaskTitle('');
+  };
+
+  // Remove todo task
+  const handleRemoveTask = (taskId: string) => {
+    setTodoTasks(todoTasks.filter((t) => t.id !== taskId));
+  };
+
+  // Toggle task completion
+  const handleToggleTask = (taskId: string) => {
+    setTodoTasks(
+      todoTasks.map((t) =>
+        t.id === taskId ? { ...t, completed: !t.completed } : t
+      )
+    );
+  };
+
   // Create project
   const handleCreateProject = async () => {
     if (!title.trim()) {
@@ -107,9 +146,15 @@ export default function NewProjectPage() {
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         status: 'active' as const,
+        tasks: todoTasks.map(task => ({
+          title: task.title,
+          taskStatus: task.completed ? 'Completed' : 'To Be Done',
+          priority: 'Medium',
+        })),
       };
 
       const project = await projectsAPI.create(projectData);
+      
       toast.success('Project created successfully!');
       router.push('/dashboard');
     } catch (error: any) {
@@ -429,6 +474,71 @@ export default function NewProjectPage() {
                 onChange={(e) => setDescription(e.target.value)}
                 className="w-full border-none resize-none focus:ring-0 p-0 min-h-[200px] sm:min-h-[300px] md:min-h-[400px]"
               />
+            </div>
+          </div>
+
+          {/* Todo Tasks Section */}
+          <div className="relative" style={{ marginTop: '30px' }}>
+            <h3 className="text-lg font-semibold mb-3">Tasks</h3>
+            <div className="border border-purple-200 rounded-3xl p-4 sm:p-6">
+              {/* Add Task Input */}
+              <div className="flex gap-2 mb-4">
+                <Input
+                  placeholder="Add a task..."
+                  value={newTaskTitle}
+                  onChange={(e) => setNewTaskTitle(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handleAddTask();
+                    }
+                  }}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={handleAddTask}
+                  className="bg-[#AEA1E4] hover:bg-purple-500 text-white"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Task List */}
+              <div className="space-y-2">
+                {todoTasks.length === 0 ? (
+                  <div className="text-center text-gray-500 py-8">
+                    No tasks added yet. Add tasks to help organize your project.
+                  </div>
+                ) : (
+                  todoTasks.map((task) => (
+                    <div
+                      key={task.id}
+                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={task.completed}
+                        onChange={() => handleToggleTask(task.id)}
+                        className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                      />
+                      <span
+                        className={`flex-1 ${
+                          task.completed ? 'line-through text-gray-400' : 'text-gray-900'
+                        }`}
+                      >
+                        {task.title}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveTask(task.id)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
           </main>
