@@ -174,7 +174,7 @@ export default function NewProjectPage() {
               placeholder="Untitled Project"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="text-2xl sm:text-3xl md:text-4xl font-bold border-none focus:ring-0 p-0 h-auto"
+              className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-500 border-none focus:ring-0 p-0 h-auto"
             />
           </div>
 
@@ -394,7 +394,7 @@ export default function NewProjectPage() {
                 max="100"
                 value={projectStatus}
                 onChange={(e) => setProjectStatus(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
-                className="w-8 h-4 px-2 text-center"
+                className="w-8 h-6 px-2 text-center"
               />
               <span className="font-medium">%</span>
             </div>
