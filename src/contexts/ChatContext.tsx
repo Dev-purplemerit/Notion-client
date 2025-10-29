@@ -196,7 +196,12 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         const chatName = data.groupName || (data.sender === currentUserEmail ? data.receiver : data.sender);
         if (chatName) {
             const message = createMessage(data, data.sender === currentUserEmail);
-            addMessage(chatName, message);
+            
+            // Add message to state
+            setMessages(prev => ({
+              ...prev,
+              [chatName]: [...(prev[chatName] || []), message],
+            }));
 
             // Increment unread count if message is not from current user
             if (data.sender !== currentUserEmail) {
@@ -208,16 +213,19 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
 
             // Create new chat if it doesn't exist
             if (data.mode === 'private' && data.sender !== currentUserEmail) {
-                const chatExists = chitChatChats.some(chat => chat.name === chatName);
-                if (!chatExists) {
-                    addChitChat({
-                        name: chatName,
-                        role: 'New Chat',
-                        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                        status: 'online',
-                        avatar: `https://i.pravatar.cc/150?u=${chatName}`,
-                    });
-                }
+                setChitChatChats(prev => {
+                  const chatExists = prev.some(chat => chat.name === chatName);
+                  if (!chatExists) {
+                    return [...prev, {
+                      name: chatName,
+                      role: 'New Chat',
+                      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                      status: 'online',
+                      avatar: `https://i.pravatar.cc/150?u=${chatName}`,
+                    }];
+                  }
+                  return prev;
+                });
             }
         }
     };
@@ -228,7 +236,12 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         const chatName = data.groupName || (data.sender === currentUserEmail ? data.receiver : data.sender);
         if (chatName) {
             const message = createMessage({ ...data, isMedia: true }, data.sender === currentUserEmail);
-            addMessage(chatName, message);
+            
+            // Add message to state
+            setMessages(prev => ({
+              ...prev,
+              [chatName]: [...(prev[chatName] || []), message],
+            }));
             
             // Increment unread count if message is not from current user
             if (data.sender !== currentUserEmail) {
@@ -260,7 +273,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       socket.off('mediaMessage');
       socket.off('error');
     };
-  }, [currentUserEmail, toast, chitChatChats, addMessage, addChitChat]);
+  }, [currentUserEmail, toast]);
 
   const addTeamChat = (chat: Chat) => {
     setTeamChats(prev => {

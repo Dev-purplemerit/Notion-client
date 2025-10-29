@@ -110,14 +110,15 @@ export const Sidebar = ({ currentView, onViewChange }: SidebarProps) => {
       }}
     >
       {/* Logo and Collapse Button */}
-      <div className="px-6 w-full">
+      <div className="w-full" style={{ paddingLeft: '24px', paddingRight: '24px' }}>
         <div className="h-8 flex items-center justify-between w-full">
           {!isCollapsed && (
             <span className="text-2xl font-bold text-primary">TaskHub</span>
           )}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className={`hover:opacity-70 transition-opacity ${isCollapsed ? 'mx-auto' : 'ml-auto'}`}
+            className={`hover:opacity-70 transition-opacity ${isCollapsed ? 'mx-auto' : ''}`}
+            style={isCollapsed ? {} : { marginLeft: 'auto', marginRight: '-12px' }}
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {isCollapsed ? (

@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AppLayout } from '@/components/AppLayout';
 import { 
   List, 
   Image as ImageIcon, 
@@ -328,61 +329,67 @@ function CollectionEditorContent() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.back()}
-            className="hover:bg-gray-100"
-            disabled={isSaving}
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <Input
-            value={fileName}
-            onChange={(e) => setFileName(e.target.value)}
-            className="text-base font-medium border-none shadow-none focus-visible:ring-0 px-2 max-w-md"
-            disabled={isLoading || isSaving}
-            placeholder="Enter collection name..."
-          />
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <Button 
-            variant="outline" 
-            className="rounded-lg px-4 gap-2"
-            onClick={handleSaveDraft}
-            disabled={isSaving || isLoading}
-          >
-            <FileText className="w-4 h-4" />
-            {isSaving ? 'Saving...' : 'Save as Draft'}
-          </Button>
-          <Button 
-            className="bg-gray-800 text-white hover:bg-gray-900 rounded-lg px-4 gap-2"
-            onClick={handlePublish}
-            disabled={isSaving || isLoading}
-          >
-            <Save className="w-4 h-4" />
-            {isSaving ? 'Publishing...' : 'Publish'}
-          </Button>
-        </div>
-      </header>
-
-      {/* Grid Container */}
-      <div className="p-8 flex items-center justify-center min-h-[calc(100vh-73px)]">
-        <div className="flex flex-col items-start gap-3">
-          <div className="flex items-start gap-3">
-            {/* Grid */}
-            <div 
-              className="grid gap-0 bg-gray-200 p-0"
-              style={{
-                gridTemplateColumns: `repeat(${cols}, 224px)`,
-                gridTemplateRows: `repeat(${rows}, 56px)`,
-              }}
+    <AppLayout>
+      <div className="flex-1 bg-white overflow-hidden flex flex-col">
+        {/* Header */}
+        <header className="border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-6">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.back()}
+              className="hover:bg-gray-100"
+              disabled={isSaving}
             >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-500 font-medium">Collection Name</label>
+              <Input
+                value={fileName}
+                onChange={(e) => setFileName(e.target.value)}
+                className="text-lg font-semibold border-2 border-gray-300 focus-visible:ring-2 focus-visible:ring-primary px-3 py-2 rounded-lg"
+                style={{ minWidth: '320px' }}
+                disabled={isLoading || isSaving}
+                placeholder="Enter collection name..."
+              />
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              className="rounded-lg px-4 gap-2"
+              onClick={handleSaveDraft}
+              disabled={isSaving || isLoading}
+            >
+              <FileText className="w-4 h-4" />
+              {isSaving ? 'Saving...' : 'Save as Draft'}
+            </Button>
+            <Button 
+              className="bg-gray-800 text-white hover:bg-gray-900 rounded-lg px-4 gap-2"
+              onClick={handlePublish}
+              disabled={isSaving || isLoading}
+            >
+              <Save className="w-4 h-4" />
+              {isSaving ? 'Publishing...' : 'Publish'}
+            </Button>
+          </div>
+        </header>
+
+        {/* Grid Container */}
+        <div className="flex-1 overflow-y-auto p-8 flex items-center justify-center">
+          <div className="flex flex-col items-start gap-3">
+            <div className="flex items-start gap-3">
+              {/* Grid */}
+              <div 
+                className="grid gap-0 bg-gray-200 p-0"
+                style={{
+                  gridTemplateColumns: `repeat(${cols}, 224px)`,
+                  gridTemplateRows: `repeat(${rows}, 56px)`,
+                }}
+              >
               {Array.from({ length: rows }).map((_, rowIndex) =>
                 Array.from({ length: cols }).map((_, colIndex) => {
                   const cellId = `${rowIndex}-${colIndex}`;
@@ -585,7 +592,8 @@ function CollectionEditorContent() {
           </Button>
         </div>
       </div>
-    </div>
+      </div>
+    </AppLayout>
   );
 }
 
