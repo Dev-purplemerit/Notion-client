@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,7 +32,7 @@ interface CellContent {
   backgroundColor: string;
 }
 
-export default function CollectionEditorPage() {
+function CollectionEditorContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -586,5 +586,17 @@ export default function CollectionEditorPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CollectionEditorPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-gray-500">Loading editor...</div>
+      </div>
+    }>
+      <CollectionEditorContent />
+    </Suspense>
   );
 }
