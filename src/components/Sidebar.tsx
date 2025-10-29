@@ -387,7 +387,8 @@ export const Sidebar = ({ currentView, onViewChange }: SidebarProps) => {
                   pathname === '/settings'
                     ? {
                         width: '292px',
-                        padding: '10px',
+                        height: '44px',
+                        padding: '10px 10px 10px 14px',
                         borderRadius: '32px',
                         background: '#AEA1E4',
                         boxShadow: 'inset 0 2px 3px 0 rgba(110, 76, 181, 0.38)'

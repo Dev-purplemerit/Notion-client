@@ -394,7 +394,7 @@ export default function NewProjectPage() {
                 max="100"
                 value={projectStatus}
                 onChange={(e) => setProjectStatus(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
-                className="w-16 h-8 px-2 text-center"
+                className="w-8 h-4 px-2 text-center"
               />
               <span className="font-medium">%</span>
             </div>

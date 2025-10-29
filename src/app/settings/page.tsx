@@ -560,35 +560,35 @@ export default function SettingsPage() {
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <span className="text-foreground">Enable Automatic Summaries</span>
-                  <Switch
+                  <SvgSwitch
                     checked={preferences?.enableAutoSummaries ?? true}
                     onCheckedChange={(checked) => handleUpdatePreference('enableAutoSummaries', checked)}
                   />
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-foreground">Smart Suggestions In Chat</span>
-                  <Switch
+                  <SvgSwitch
                     checked={preferences?.enableSmartSuggestions ?? true}
                     onCheckedChange={(checked) => handleUpdatePreference('enableSmartSuggestions', checked)}
                   />
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-foreground">AI Voice Detection For Translations</span>
-                  <Switch
+                  <SvgSwitch
                     checked={preferences?.enableVoiceDetection ?? true}
                     onCheckedChange={(checked) => handleUpdatePreference('enableVoiceDetection', checked)}
                   />
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-foreground">Language For Captions/Translation</span>
-                  <Switch
+                  <SvgSwitch
                     checked={preferences?.enableLanguageTranslation ?? true}
                     onCheckedChange={(checked) => handleUpdatePreference('enableLanguageTranslation', checked)}
                   />
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-foreground">AI Task Prioritization</span>
-                  <Switch
+                  <SvgSwitch
                     checked={preferences?.enableTaskPrioritization ?? true}
                     onCheckedChange={(checked) => handleUpdatePreference('enableTaskPrioritization', checked)}
                   />
