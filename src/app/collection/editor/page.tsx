@@ -4,9 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { 
-  Plus, 
   List, 
   Image as ImageIcon, 
   Link as LinkIcon, 
@@ -268,193 +266,193 @@ export default function CollectionEditorPage() {
 
       {/* Grid Container */}
       <div className="p-8 flex items-center justify-center min-h-[calc(100vh-73px)]">
-        <div className="flex items-start gap-4">
-          {/* Grid */}
-          <div 
-            className="grid gap-1 bg-gray-200 p-1"
-            style={{
-              gridTemplateColumns: `repeat(${cols}, 224px)`,
-              gridTemplateRows: `repeat(${rows}, 56px)`,
-            }}
-          >
-            {Array.from({ length: rows }).map((_, rowIndex) =>
-              Array.from({ length: cols }).map((_, colIndex) => {
-                const cellId = `${rowIndex}-${colIndex}`;
-                const cell = cells[cellId];
-                
-                return (
-                  <div
-                    key={cellId}
-                    className="relative group bg-white border border-gray-300 overflow-hidden"
-                    style={{ backgroundColor: cell.backgroundColor }}
-                  >
-                    {/* Cell Content */}
-                    {renderCellContent(cell)}
+        <div className="flex flex-col items-start gap-3">
+          <div className="flex items-start gap-3">
+            {/* Grid */}
+            <div 
+              className="grid gap-3 bg-gray-200 p-1"
+              style={{
+                gridTemplateColumns: `repeat(${cols}, 224px)`,
+                gridTemplateRows: `repeat(${rows}, 56px)`,
+              }}
+            >
+              {Array.from({ length: rows }).map((_, rowIndex) =>
+                Array.from({ length: cols }).map((_, colIndex) => {
+                  const cellId = `${rowIndex}-${colIndex}`;
+                  const cell = cells[cellId];
+                  
+                  return (
+                    <div
+                      key={cellId}
+                      className="relative group bg-white border border-gray-300 overflow-hidden"
+                      style={{ backgroundColor: cell.backgroundColor }}
+                    >
+                      {/* Cell Content */}
+                      {renderCellContent(cell)}
 
-                    {/* Cell Actions Toolbar - Shows on hover */}
-                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button 
-                            size="icon" 
-                            variant="secondary" 
-                            className="h-7 w-7 bg-white/90 hover:bg-white shadow-sm"
-                          >
-                            <List className="w-4 h-4" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-64 p-3 bg-white">
-                          <div className="space-y-2">
-                            <h4 className="font-medium text-sm">Add List Items</h4>
-                            <div className="flex gap-2">
-                              <Input
-                                placeholder="Enter item..."
-                                value={editingCell === cellId ? tempListItem : ''}
-                                onChange={(e) => {
-                                  setEditingCell(cellId);
-                                  setTempListItem(e.target.value);
-                                }}
-                                onKeyPress={(e) => {
-                                  if (e.key === 'Enter') {
+                      {/* Cell Actions Toolbar - Shows on hover */}
+                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button 
+                              size="icon" 
+                              variant="secondary" 
+                              className="h-7 w-7 bg-white/90 hover:bg-white shadow-sm"
+                            >
+                              <List className="w-4 h-4" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64 p-3 bg-white">
+                            <div className="space-y-2">
+                              <h4 className="font-medium text-sm">Add List Items</h4>
+                              <div className="flex gap-2">
+                                <Input
+                                  placeholder="Enter item..."
+                                  value={editingCell === cellId ? tempListItem : ''}
+                                  onChange={(e) => {
+                                    setEditingCell(cellId);
+                                    setTempListItem(e.target.value);
+                                  }}
+                                  onKeyPress={(e) => {
+                                    if (e.key === 'Enter') {
+                                      if (cell.type !== 'list') {
+                                        updateCellType(cellId, 'list');
+                                      }
+                                      addListItem(cellId);
+                                    }
+                                  }}
+                                  className="text-sm"
+                                />
+                                <Button 
+                                  size="sm"
+                                  onClick={() => {
                                     if (cell.type !== 'list') {
                                       updateCellType(cellId, 'list');
                                     }
                                     addListItem(cellId);
+                                  }}
+                                >
+                                  Add
+                                </Button>
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button 
+                              size="icon" 
+                              variant="secondary" 
+                              className="h-7 w-7 bg-white/90 hover:bg-white shadow-sm"
+                            >
+                              <ImageIcon className="w-4 h-4" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64 p-3 bg-white">
+                            <div className="space-y-2">
+                              <h4 className="font-medium text-sm">Add Image URL</h4>
+                              <Input
+                                placeholder="https://example.com/image.jpg"
+                                value={cell.type === 'image' ? (cell.data as string) : ''}
+                                onChange={(e) => {
+                                  if (cell.type !== 'image') {
+                                    updateCellType(cellId, 'image');
                                   }
+                                  updateCellData(cellId, e.target.value);
                                 }}
                                 className="text-sm"
                               />
-                              <Button 
-                                size="sm"
-                                onClick={() => {
-                                  if (cell.type !== 'list') {
-                                    updateCellType(cellId, 'list');
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button 
+                              size="icon" 
+                              variant="secondary" 
+                              className="h-7 w-7 bg-white/90 hover:bg-white shadow-sm"
+                            >
+                              <LinkIcon className="w-4 h-4" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64 p-3 bg-white">
+                            <div className="space-y-2">
+                              <h4 className="font-medium text-sm">Add URL</h4>
+                              <Input
+                                placeholder="https://example.com"
+                                value={cell.type === 'url' ? (cell.data as string) : ''}
+                                onChange={(e) => {
+                                  if (cell.type !== 'url') {
+                                    updateCellType(cellId, 'url');
                                   }
-                                  addListItem(cellId);
+                                  updateCellData(cellId, e.target.value);
                                 }}
-                              >
-                                Add
-                              </Button>
+                                className="text-sm"
+                              />
                             </div>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
+                          </PopoverContent>
+                        </Popover>
 
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button 
-                            size="icon" 
-                            variant="secondary" 
-                            className="h-7 w-7 bg-white/90 hover:bg-white shadow-sm"
-                          >
-                            <ImageIcon className="w-4 h-4" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-64 p-3 bg-white">
-                          <div className="space-y-2">
-                            <h4 className="font-medium text-sm">Add Image URL</h4>
-                            <Input
-                              placeholder="https://example.com/image.jpg"
-                              value={cell.type === 'image' ? (cell.data as string) : ''}
-                              onChange={(e) => {
-                                if (cell.type !== 'image') {
-                                  updateCellType(cellId, 'image');
-                                }
-                                updateCellData(cellId, e.target.value);
-                              }}
-                              className="text-sm"
-                            />
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button 
-                            size="icon" 
-                            variant="secondary" 
-                            className="h-7 w-7 bg-white/90 hover:bg-white shadow-sm"
-                          >
-                            <LinkIcon className="w-4 h-4" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-64 p-3 bg-white">
-                          <div className="space-y-2">
-                            <h4 className="font-medium text-sm">Add URL</h4>
-                            <Input
-                              placeholder="https://example.com"
-                              value={cell.type === 'url' ? (cell.data as string) : ''}
-                              onChange={(e) => {
-                                if (cell.type !== 'url') {
-                                  updateCellType(cellId, 'url');
-                                }
-                                updateCellData(cellId, e.target.value);
-                              }}
-                              className="text-sm"
-                            />
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button 
-                            size="icon" 
-                            variant="secondary" 
-                            className="h-7 w-7 bg-white/90 hover:bg-white shadow-sm"
-                          >
-                            <Palette className="w-4 h-4" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-48 p-3 bg-white">
-                          <div className="space-y-2">
-                            <h4 className="font-medium text-sm">Background Color</h4>
-                            <div className="grid grid-cols-5 gap-2">
-                              {colors.map((color) => (
-                                <button
-                                  key={color}
-                                  className="w-8 h-8 rounded border-2 border-gray-300 hover:border-gray-600 transition-colors"
-                                  style={{ backgroundColor: color }}
-                                  onClick={() => updateCellBackground(cellId, color)}
-                                />
-                              ))}
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button 
+                              size="icon" 
+                              variant="secondary" 
+                              className="h-7 w-7 bg-white/90 hover:bg-white shadow-sm"
+                            >
+                              <Palette className="w-4 h-4" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-48 p-3 bg-white">
+                            <div className="space-y-2">
+                              <h4 className="font-medium text-sm">Background Color</h4>
+                              <div className="grid grid-cols-5 gap-2">
+                                {colors.map((color) => (
+                                  <button
+                                    key={color}
+                                    className="w-8 h-8 rounded border-2 border-gray-300 hover:border-gray-600 transition-colors"
+                                    style={{ backgroundColor: color }}
+                                    onClick={() => updateCellBackground(cellId, color)}
+                                  />
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
                     </div>
-                  </div>
-                );
-              })
-            )}
+                  );
+                })
+              )}
+            </div>
+
+            {/* Add Column Button */}
+            <Button
+              variant="ghost"
+              onClick={addColumn}
+              className="rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+              style={{
+                width: '112px',
+                height: `${rows * 56 + (rows - 1) * 12 + 2}px`,
+                flexShrink: 0,
+                writingMode: 'vertical-rl',
+                transform: 'rotate(180deg)'
+              }}
+              title="Add column"
+            >
+              <span className="text-sm font-medium">Add</span>
+            </Button>
           </div>
 
-          {/* Add Column Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={addColumn}
-            className="h-8 w-28 rounded-lg bg-gray-100 hover:bg-gray-200"
-            style={{
-              width: '112px',
-              height: '32px',
-              transform: 'rotate(-90deg)',
-              flexShrink: 0
-            }}
-            title="Add column"
-          >
-            <span className="text-sm font-medium transform rotate-90">Add</span>
-          </Button>
-        </div>
-
-        {/* Add Row Button */}
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2">
+          {/* Add Row Button */}
           <Button
             variant="ghost"
             onClick={addRow}
             className="rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
             style={{
-              width: '448px',
+              width: `${cols * 224 + (cols - 1) * 12 + 2}px`,
               height: '32px',
               flexShrink: 0
             }}
