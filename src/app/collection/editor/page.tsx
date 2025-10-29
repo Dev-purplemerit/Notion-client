@@ -273,8 +273,8 @@ export default function CollectionEditorPage() {
           <div 
             className="grid gap-1 bg-gray-200 p-1"
             style={{
-              gridTemplateColumns: `repeat(${cols}, 240px)`,
-              gridTemplateRows: `repeat(${rows}, 240px)`,
+              gridTemplateColumns: `repeat(${cols}, 224px)`,
+              gridTemplateRows: `repeat(${rows}, 56px)`,
             }}
           >
             {Array.from({ length: rows }).map((_, rowIndex) =>
@@ -434,10 +434,16 @@ export default function CollectionEditorPage() {
             variant="ghost"
             size="icon"
             onClick={addColumn}
-            className="h-10 w-10 rounded-lg bg-gray-100 hover:bg-gray-200 mt-[115px]"
+            className="h-8 w-28 rounded-lg bg-gray-100 hover:bg-gray-200"
+            style={{
+              width: '112px',
+              height: '32px',
+              transform: 'rotate(-90deg)',
+              flexShrink: 0
+            }}
             title="Add column"
           >
-            <Plus className="w-5 h-5" />
+            <span className="text-sm font-medium transform rotate-90">Add</span>
           </Button>
         </div>
 
@@ -446,10 +452,14 @@ export default function CollectionEditorPage() {
           <Button
             variant="ghost"
             onClick={addRow}
-            className="h-10 px-4 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center gap-2"
+            className="rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+            style={{
+              width: '448px',
+              height: '32px',
+              flexShrink: 0
+            }}
             title="Add row"
           >
-            <Plus className="w-5 h-5" />
             <span className="text-sm font-medium">Add</span>
           </Button>
         </div>
