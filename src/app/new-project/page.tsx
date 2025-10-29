@@ -22,7 +22,6 @@ interface User {
 interface TodoTask {
   id: string;
   title: string;
-  completed: boolean;
 }
 
 export default function NewProjectPage() {
@@ -104,7 +103,6 @@ export default function NewProjectPage() {
     const newTask: TodoTask = {
       id: Date.now().toString(),
       title: newTaskTitle,
-      completed: false,
     };
     setTodoTasks([...todoTasks, newTask]);
     setNewTaskTitle('');
@@ -113,15 +111,6 @@ export default function NewProjectPage() {
   // Remove todo task
   const handleRemoveTask = (taskId: string) => {
     setTodoTasks(todoTasks.filter((t) => t.id !== taskId));
-  };
-
-  // Toggle task completion
-  const handleToggleTask = (taskId: string) => {
-    setTodoTasks(
-      todoTasks.map((t) =>
-        t.id === taskId ? { ...t, completed: !t.completed } : t
-      )
-    );
   };
 
   // Create project
@@ -148,7 +137,7 @@ export default function NewProjectPage() {
         status: 'active' as const,
         tasks: todoTasks.map(task => ({
           title: task.title,
-          taskStatus: task.completed ? 'Completed' : 'To Be Done',
+          taskStatus: 'To Be Done',
           priority: 'Medium',
         })),
       };
@@ -514,17 +503,7 @@ export default function NewProjectPage() {
                       key={task.id}
                       className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                     >
-                      <input
-                        type="checkbox"
-                        checked={task.completed}
-                        onChange={() => handleToggleTask(task.id)}
-                        className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                      />
-                      <span
-                        className={`flex-1 ${
-                          task.completed ? 'line-through text-gray-400' : 'text-gray-900'
-                        }`}
-                      >
+                      <span className="flex-1 text-gray-900">
                         {task.title}
                       </span>
                       <Button

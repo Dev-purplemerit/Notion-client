@@ -612,8 +612,8 @@ export const ProjectList = () => {
     };
 
     const handleProjectSelect = (projectId: string) => {
-      setSelectedProjectId(projectId);
-      router.push(`/project-detail/${projectId}`);
+  setSelectedProjectId(projectId);
+  router.push(`/project-detail/${projectId}/tasks`);
     };
 
     // NOTE: The components for other views are not included here for brevity,

@@ -49,7 +49,7 @@ export default function AllTasksPage({ onClose }: AllTasksPageProps = {}) {
   const [allTaskMembers, setAllTaskMembers] = useState<any[]>([]);
 
   // Use shared task context
-  const { tasks, loading, addTask } = useTasks();
+  const { tasks, loading, addTask, updateTask } = useTasks();
 
   // Get current user from auth context
   const { user } = useAuth();
@@ -245,7 +245,7 @@ export default function AllTasksPage({ onClose }: AllTasksPageProps = {}) {
       const newStatus = checked ? 'completed' : 'todo';
       
       // Update in calendar/teams task system
-      await addTask({ ...task, status: newStatus });
+      await updateTask(task._id, { status: newStatus });
       
       // If task has projectId, also update in project tasks
       if (task.projectId) {

@@ -127,6 +127,48 @@ export default function ProjectTasksPage() {
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<{ taskId: string; type: 'priority' | 'timeTracker' | 'status' } | null>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (openDropdown) {
+        setOpenDropdown(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [openDropdown]);
+
+  // Handle updating task
+  const handleUpdateTask = async (taskId: string, updates: any) => {
+    try {
+      await projectsAPI.updateTask(projectId, taskId, updates);
+      // Refetch tasks to get updated data
+      const tasksData = await projectsAPI.getProjectTasks(projectId);
+      const formattedTasks: Task[] = tasksData.map((task: any) => ({
+        id: task._id,
+        title: task.title,
+        assignedBy: { 
+          name: task.assignedBy?.name || task.createdBy?.name || 'Unknown',
+          avatar: task.assignedBy?.avatar || task.createdBy?.avatar,
+        },
+        createdOn: new Date(task.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
+        priority: (task.priority?.toLowerCase() || 'medium') as 'high' | 'medium' | 'low',
+        timeTracker: (task.timeTracker?.toLowerCase() || 'start') as 'start' | 'break' | 'end',
+        status: task.taskStatus === 'Completed' ? 'completed' : 
+                task.taskStatus === 'In Progress' ? 'in-progress' : 
+                'to-be-done',
+        projectId,
+      }));
+      setTasks(formattedTasks);
+    } catch (error) {
+      console.error('Failed to update task:', error);
+    }
+  };
 
   // Fetch projects and tasks
   useEffect(() => {
@@ -175,10 +217,10 @@ export default function ProjectTasksPage() {
 
   return (
     <AppLayout>
-      <div className="flex-1 flex flex-col bg-white">
+      <div className="flex-1 flex flex-col" style={{ background: '#FFF' }}>
         {/* Header */}
-        <div className="border-b px-8 py-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="border-b px-8 py-6" style={{ background: '#FFF' }}>
+          <div className="flex items-center justify-between">
             <div className="relative">
               <button
                 onClick={() => setShowProjectDropdown(!showProjectDropdown)}
@@ -207,63 +249,64 @@ export default function ProjectTasksPage() {
                 </div>
               )}
             </div>
-            <Button
-              variant="outline"
-              className="rounded-full px-6"
-              style={{
-                border: '1px solid #000',
-                background: '#FFF',
-              }}
-            >
-              share
-            </Button>
-          </div>
-
-          {/* View Toggle */}
-          <div className="flex gap-2">
-            <Button
-              variant={viewMode === 'board' ? 'default' : 'outline'}
-              onClick={() => setViewMode('board')}
-              className="rounded-full px-6"
-              style={
-                viewMode === 'board'
-                  ? {
-                      background: '#000',
-                      color: '#FFF',
-                    }
-                  : {
-                      border: '1px solid #000',
-                      background: '#FFF',
-                      color: '#000',
-                    }
-              }
-            >
-              Task Board
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'outline'}
-              onClick={() => setViewMode('list')}
-              className="rounded-full px-6 flex items-center gap-2"
-              style={
-                viewMode === 'list'
-                  ? {
-                      background: '#000',
-                      color: '#FFF',
-                    }
-                  : {
-                      border: '1px solid #000',
-                      background: '#FFF',
-                      color: '#000',
-                    }
-              }
-            >
-              List View
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 7H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                <path d="M3 12H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                <path d="M3 17H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-            </Button>
+            <div className="flex items-center gap-4">
+              {/* View Toggle */}
+              <div className="flex gap-2">
+                <Button
+                  variant={viewMode === 'board' ? 'default' : 'outline'}
+                  onClick={() => setViewMode('board')}
+                  className="rounded-full px-6"
+                  style={
+                    viewMode === 'board'
+                      ? {
+                          background: '#000',
+                          color: '#FFF',
+                        }
+                      : {
+                          border: '1px solid #000',
+                          background: '#FFF',
+                          color: '#000',
+                        }
+                  }
+                >
+                  Task Board
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'outline'}
+                  onClick={() => setViewMode('list')}
+                  className="rounded-full px-6 flex items-center gap-2"
+                  style={
+                    viewMode === 'list'
+                      ? {
+                          background: '#000',
+                          color: '#FFF',
+                        }
+                      : {
+                          border: '1px solid #000',
+                          background: '#FFF',
+                          color: '#000',
+                        }
+                  }
+                >
+                  List View
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 7H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M3 12H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M3 17H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                </Button>
+              </div>
+              <Button
+                variant="outline"
+                className="rounded-full px-6"
+                style={{
+                  border: '1px solid #000',
+                  background: '#FFF',
+                }}
+              >
+                share
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -346,7 +389,7 @@ export default function ProjectTasksPage() {
                       </div>
 
                       {/* Priority */}
-                      <div className="px-4 py-3 flex items-center border-r">
+                      <div className="px-4 py-3 flex items-center border-r relative">
                         <div
                           className="flex items-center gap-2 cursor-pointer w-full"
                           style={{
@@ -359,6 +402,10 @@ export default function ProjectTasksPage() {
                             border: '0.5px solid #AAA',
                             borderRadius: '4px',
                           }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenDropdown(openDropdown?.taskId === task.id && openDropdown?.type === 'priority' ? null : { taskId: task.id, type: 'priority' });
+                          }}
                         >
                           {priorityOptions.find((p) => p.value === task.priority)?.icon}
                           <span className="text-sm flex-1">
@@ -366,12 +413,32 @@ export default function ProjectTasksPage() {
                           </span>
                           <ChevronDown size={16} className="text-gray-400" />
                         </div>
+                        
+                        {/* Priority Dropdown */}
+                        {openDropdown?.taskId === task.id && openDropdown?.type === 'priority' && (
+                          <div className="absolute top-full left-4 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 min-w-[140px]">
+                            {priorityOptions.map((option) => (
+                              <div
+                                key={option.value}
+                                className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center gap-2"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateTask(task.id, { priority: option.label });
+                                  setOpenDropdown(null);
+                                }}
+                              >
+                                {option.icon}
+                                <span className="text-sm">{option.label}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       {/* Time Tracker */}
-                      <div className="px-4 py-3 flex items-center border-r">
+                      <div className="px-4 py-3 flex items-center border-r relative">
                         <div
-                          className="flex items-center justify-center cursor-pointer"
+                          className="flex items-center justify-center cursor-pointer w-full"
                           style={{
                             display: 'flex',
                             height: '24px',
@@ -384,15 +451,47 @@ export default function ProjectTasksPage() {
                             fontSize: '12px',
                             fontWeight: 500,
                           }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenDropdown(openDropdown?.taskId === task.id && openDropdown?.type === 'timeTracker' ? null : { taskId: task.id, type: 'timeTracker' });
+                          }}
                         >
                           {timeTrackerOptions.find((t) => t.value === task.timeTracker)?.label}
                         </div>
+                        
+                        {/* Time Tracker Dropdown */}
+                        {openDropdown?.taskId === task.id && openDropdown?.type === 'timeTracker' && (
+                          <div className="absolute top-full left-4 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 min-w-[120px]">
+                            {timeTrackerOptions.map((option) => (
+                              <div
+                                key={option.value}
+                                className="px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateTask(task.id, { timeTracker: option.label });
+                                  setOpenDropdown(null);
+                                }}
+                              >
+                                <div
+                                  className="text-sm text-center"
+                                  style={{
+                                    padding: '4px 8px',
+                                    borderRadius: '12px',
+                                    ...option.style,
+                                  }}
+                                >
+                                  {option.label}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       {/* Status */}
-                      <div className="px-4 py-3 flex items-center">
+                      <div className="px-4 py-3 flex items-center relative">
                         <div
-                          className="flex items-center justify-center cursor-pointer"
+                          className="flex items-center justify-center cursor-pointer w-full"
                           style={{
                             display: 'flex',
                             height: '24px',
@@ -405,9 +504,41 @@ export default function ProjectTasksPage() {
                             fontSize: '12px',
                             fontWeight: 500,
                           }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenDropdown(openDropdown?.taskId === task.id && openDropdown?.type === 'status' ? null : { taskId: task.id, type: 'status' });
+                          }}
                         >
                           {statusOptions.find((s) => s.value === task.status)?.label}
                         </div>
+                        
+                        {/* Status Dropdown */}
+                        {openDropdown?.taskId === task.id && openDropdown?.type === 'status' && (
+                          <div className="absolute top-full left-4 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 min-w-[140px]">
+                            {statusOptions.map((option) => (
+                              <div
+                                key={option.value}
+                                className="px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateTask(task.id, { taskStatus: option.label });
+                                  setOpenDropdown(null);
+                                }}
+                              >
+                                <div
+                                  className="text-sm text-center"
+                                  style={{
+                                    padding: '4px 8px',
+                                    borderRadius: '12px',
+                                    ...option.style,
+                                  }}
+                                >
+                                  {option.label}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
