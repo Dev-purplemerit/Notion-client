@@ -270,7 +270,7 @@ export default function CollectionEditorPage() {
           <div className="flex items-start gap-3">
             {/* Grid */}
             <div 
-              className="grid gap-3 bg-gray-200 p-1"
+              className="grid gap-0 bg-gray-200 p-0"
               style={{
                 gridTemplateColumns: `repeat(${cols}, 224px)`,
                 gridTemplateRows: `repeat(${rows}, 56px)`,
@@ -281,6 +281,18 @@ export default function CollectionEditorPage() {
                   const cellId = `${rowIndex}-${colIndex}`;
                   const cell = cells[cellId];
                   
+                  // Determine border radius based on position
+                  let borderRadius = '0';
+                  const isTopLeft = rowIndex === 0 && colIndex === 0;
+                  const isTopRight = rowIndex === 0 && colIndex === cols - 1;
+                  const isBottomLeft = rowIndex === rows - 1 && colIndex === 0;
+                  const isBottomRight = rowIndex === rows - 1 && colIndex === cols - 1;
+                  
+                  if (isTopLeft) borderRadius = '8px 0 0 0';
+                  else if (isTopRight) borderRadius = '0 8px 0 0';
+                  else if (isBottomLeft) borderRadius = '0 0 0 8px';
+                  else if (isBottomRight) borderRadius = '0 0 8px 0';
+                  
                   return (
                     <div
                       key={cellId}
@@ -288,7 +300,7 @@ export default function CollectionEditorPage() {
                       style={{ 
                         backgroundColor: cell.backgroundColor,
                         border: '1px solid #AAA',
-                        borderRadius: '8px 0 0 0'
+                        borderRadius: borderRadius
                       }}
                     >
                       {/* Cell Content */}
