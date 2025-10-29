@@ -754,8 +754,17 @@ export default function Meeting() {
           <header className="flex items-center justify-between w-full">
             <div className="flex-1">
               <div className="relative max-w-lg">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <Input placeholder="Search Meeting" className="pl-11 h-12 bg-white rounded-lg shadow-sm border-gray-100" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Input
+                  placeholder="Search Meeting"
+                  className="pl-11 bg-white h-10 w-full"
+                  style={{
+                    borderRadius: '24px',
+                    border: '1px solid #E6E6E6',
+                    background: '#FFF',
+                    boxShadow: '0 4px 4px 0 rgba(221, 221, 221, 0.25)',
+                  }}
+                />
               </div>
             </div>
           </header>

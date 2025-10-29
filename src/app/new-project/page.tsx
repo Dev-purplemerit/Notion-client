@@ -137,10 +137,16 @@ export default function NewProjectPage() {
         {/* Header */}
         <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div className="relative flex-1 w-full max-w-md">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <Input
               placeholder="Find Something"
-              className="pl-10 border-gray-200 rounded-xl w-full"
+              className="pl-11 bg-white h-10 w-full"
+              style={{
+                borderRadius: '24px',
+                border: '1px solid #E6E6E6',
+                background: '#FFF',
+                boxShadow: '0 4px 4px 0 rgba(221, 221, 221, 0.25)',
+              }}
             />
           </div>
           <div className="flex flex-col gap-2 sm:gap-3 w-full sm:w-auto">

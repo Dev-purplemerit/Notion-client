@@ -57,8 +57,17 @@ export default function ProjectsPage() {
         {/* Header */}
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-6 border-b">
             <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <Input placeholder="Find Something" className="pl-11 h-11 bg-gray-100 rounded-lg border-none w-full" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Input
+                  placeholder="Find Something"
+                  className="pl-11 bg-white h-10 w-full"
+                  style={{
+                    borderRadius: '24px',
+                    border: '1px solid #E6E6E6',
+                    background: '#FFF',
+                    boxShadow: '0 4px 4px 0 rgba(221, 221, 221, 0.25)',
+                  }}
+                />
             </div>
             <div className="flex items-center gap-2 sm:gap-4">
                 <Button

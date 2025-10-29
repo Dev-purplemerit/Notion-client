@@ -386,10 +386,16 @@ export default function Page() {
         {/* Header */}
         <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 p-3 sm:p-4 border-b shrink-0">
             <div className="relative flex-1 w-full max-w-md">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <Input
                     placeholder="Find Something"
-                    className="border-0 pl-10 sm:pl-12 rounded-3xl border-purple-100 bg-purple-50 w-full"
+                    className="pl-11 bg-white h-10 w-full"
+                    style={{
+                      borderRadius: '24px',
+                      border: '1px solid #E6E6E6',
+                      background: '#FFF',
+                      boxShadow: '0 4px 4px 0 rgba(221, 221, 221, 0.25)',
+                    }}
                 />
             </div>
             <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">

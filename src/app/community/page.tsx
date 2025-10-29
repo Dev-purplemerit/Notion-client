@@ -395,10 +395,16 @@ export default function CommunityPage() {
                             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8 lg:gap-16 mb-6 sm:mb-8">
                                 <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Community</h1>
                                 <div className="relative flex-1 w-full max-w-md">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                                     <Input
                                         placeholder="Search"
-                                        className="pl-10 h-10 rounded-3xl border-gray-200 bg-white shadow-sm w-full"
+                                        className="pl-11 bg-white h-10 w-full"
+                                        style={{
+                                          borderRadius: '24px',
+                                          border: '1px solid #E6E6E6',
+                                          background: '#FFF',
+                                          boxShadow: '0 4px 4px 0 rgba(221, 221, 221, 0.25)',
+                                        }}
                                     />
                                 </div>
                             </div>
@@ -754,17 +760,16 @@ export default function CommunityPage() {
                         <div className="mb-6">
                             <h2 className="text-lg font-semibold mb-4">Messages</h2>
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                                 <Input
                                     placeholder="Search"
-                                    className="pl-10"
+                                    className="pl-11 bg-white h-8 w-full"
                                     style={{
                                         width: '264px',
-                                        height: '32px',
-                                        flexShrink: 0,
                                         borderRadius: '24px',
-                                        border: '0.5px solid #D9D9D9',
-                                        background: '#FFF'
+                                        border: '1px solid #E6E6E6',
+                                        background: '#FFF',
+                                        boxShadow: '0 4px 4px 0 rgba(221, 221, 221, 0.25)',
                                     }}
                                 />
                             </div>
