@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/AppLayout';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,6 +9,7 @@ import { Search, Folder, MoreVertical, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function CollectionPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
 
   // Mock data for recent drafts
@@ -71,6 +73,7 @@ export default function CollectionPage() {
                 borderRadius: '16px',
                 flexShrink: 0
               }}
+              onClick={() => router.push('/collection/editor')}
             >
               <CardContent className="flex flex-col items-center justify-center h-full p-4">
                 <div className="w-14 h-14 rounded-full border-2 border-dashed border-gray-400 flex items-center justify-center mb-3">
