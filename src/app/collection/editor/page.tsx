@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
@@ -12,7 +12,9 @@ import {
   ArrowLeft,
   X,
   Download,
-  Users
+  Users,
+  Save,
+  FileText
 } from 'lucide-react';
 import {
   Popover,
@@ -20,6 +22,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { collectionsAPI } from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
 
 interface CellContent {
   id: string;
@@ -30,6 +34,10 @@ interface CellContent {
 
 export default function CollectionEditorPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
+  const collectionId = searchParams.get('id');
+  
   const [rows, setRows] = useState(2);
   const [cols, setCols] = useState(2);
   const [cells, setCells] = useState<{ [key: string]: CellContent }>(() => {
@@ -49,7 +57,105 @@ export default function CollectionEditorPage() {
 
   const [editingCell, setEditingCell] = useState<string | null>(null);
   const [tempListItem, setTempListItem] = useState('');
-  const [fileName, setFileName] = useState('Opened file name');
+  const [fileName, setFileName] = useState('Untitled Collection');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (collectionId) {
+      loadCollection(collectionId);
+    }
+  }, [collectionId]);
+
+  const loadCollection = async (id: string) => {
+    try {
+      setIsLoading(true);
+      const response = await collectionsAPI.getById(id);
+      
+      if (response.success && response.collection) {
+        const collection = response.collection;
+        setFileName(collection.name);
+        setRows(collection.rows);
+        setCols(collection.cols);
+        setCells(collection.cells);
+      }
+    } catch (error) {
+      console.error('Failed to load collection:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load collection",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const saveCollection = async (status: 'draft' | 'published') => {
+    if (!fileName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a collection name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+
+      // Generate thumbnail (first image in cells)
+      let thumbnail: string | undefined;
+      for (const cell of Object.values(cells)) {
+        if (cell.type === 'image' && cell.data) {
+          thumbnail = cell.data as string;
+          break;
+        }
+      }
+
+      const collectionData = {
+        name: fileName,
+        rows,
+        cols,
+        cells,
+        status,
+        thumbnail,
+      };
+
+      let response;
+      if (collectionId) {
+        // Update existing collection
+        response = await collectionsAPI.update(collectionId, collectionData);
+      } else {
+        // Create new collection
+        response = await collectionsAPI.create(collectionData);
+      }
+
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: `Collection ${status === 'draft' ? 'saved as draft' : 'published'} successfully`,
+        });
+
+        // Redirect to collection list after save
+        setTimeout(() => {
+          router.push('/collection');
+        }, 1000);
+      }
+    } catch (error: any) {
+      console.error('Failed to save collection:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save collection",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveDraft = () => saveCollection('draft');
+  const handlePublish = () => saveCollection('published');
 
   const addColumn = () => {
     const newCols = cols + 1;
@@ -231,6 +337,7 @@ export default function CollectionEditorPage() {
             size="icon"
             onClick={() => router.back()}
             className="hover:bg-gray-100"
+            disabled={isSaving}
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
@@ -238,28 +345,28 @@ export default function CollectionEditorPage() {
             value={fileName}
             onChange={(e) => setFileName(e.target.value)}
             className="text-base font-medium border-none shadow-none focus-visible:ring-0 px-2 max-w-md"
+            disabled={isLoading || isSaving}
+            placeholder="Enter collection name..."
           />
         </div>
         
         <div className="flex items-center gap-3">
-          <div className="flex -space-x-2">
-            <Avatar className="w-8 h-8 border-2 border-white">
-              <AvatarImage src="/placeholder.svg" />
-              <AvatarFallback>U1</AvatarFallback>
-            </Avatar>
-            <Avatar className="w-8 h-8 border-2 border-white">
-              <AvatarImage src="/placeholder.svg" />
-              <AvatarFallback>U2</AvatarFallback>
-            </Avatar>
-          </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <Users className="w-4 h-4" />
+          <Button 
+            variant="outline" 
+            className="rounded-lg px-4 gap-2"
+            onClick={handleSaveDraft}
+            disabled={isSaving || isLoading}
+          >
+            <FileText className="w-4 h-4" />
+            {isSaving ? 'Saving...' : 'Save as Draft'}
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <Download className="w-4 h-4" />
-          </Button>
-          <Button className="bg-gray-800 text-white hover:bg-gray-900 rounded-lg px-4">
-            Share
+          <Button 
+            className="bg-gray-800 text-white hover:bg-gray-900 rounded-lg px-4 gap-2"
+            onClick={handlePublish}
+            disabled={isSaving || isLoading}
+          >
+            <Save className="w-4 h-4" />
+            {isSaving ? 'Publishing...' : 'Publish'}
           </Button>
         </div>
       </header>

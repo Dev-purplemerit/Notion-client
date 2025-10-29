@@ -954,6 +954,77 @@ export const gmailAPI = {
     }),
 };
 
+// Collections API
+export const collectionsAPI = {
+  // Create a new collection
+  create: (data: {
+    name: string;
+    rows: number;
+    cols: number;
+    cells: any;
+    projectId?: string;
+    status?: 'draft' | 'published';
+    thumbnail?: string;
+  }) =>
+    apiRequest('/collections', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  // Get all collections
+  getAll: (status?: 'draft' | 'published') => {
+    const query = status ? `?status=${status}` : '';
+    return apiRequest(`/collections${query}`);
+  },
+
+  // Get recent drafts
+  getRecentDrafts: (limit: number = 10) =>
+    apiRequest(`/collections/drafts/recent?limit=${limit}`),
+
+  // Get published collections
+  getPublished: (limit?: number) => {
+    const query = limit ? `?limit=${limit}` : '';
+    return apiRequest(`/collections/published${query}`);
+  },
+
+  // Get collections by project
+  getByProject: (projectId: string, status?: 'draft' | 'published') => {
+    const query = status ? `?status=${status}` : '';
+    return apiRequest(`/collections/project/${projectId}${query}`);
+  },
+
+  // Get a single collection
+  getById: (id: string) => apiRequest(`/collections/${id}`),
+
+  // Update a collection
+  update: (id: string, data: {
+    name?: string;
+    rows?: number;
+    cols?: number;
+    cells?: any;
+    status?: 'draft' | 'published';
+    thumbnail?: string;
+    projectId?: string;
+  }) =>
+    apiRequest(`/collections/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  // Delete a collection
+  delete: (id: string) =>
+    apiRequest(`/collections/${id}`, {
+      method: 'DELETE',
+    }),
+
+  // Share a collection
+  share: (id: string, userIds: string[]) =>
+    apiRequest(`/collections/${id}/share`, {
+      method: 'POST',
+      body: JSON.stringify({ userIds }),
+    }),
+};
+
 export default {
   auth: authAPI,
   teams: teamsAPI,
@@ -971,4 +1042,5 @@ export default {
   chat: chatAPI,
   dashboard: dashboardAPI,
   gmail: gmailAPI,
+  collections: collectionsAPI,
 };

@@ -1,37 +1,82 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/AppLayout';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Search, Folder, MoreVertical, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { collectionsAPI } from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
+
+interface Collection {
+  _id: string;
+  name: string;
+  rows: number;
+  cols: number;
+  status: 'draft' | 'published';
+  thumbnail?: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export default function CollectionPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
+  const [recentDrafts, setRecentDrafts] = useState<Collection[]>([]);
+  const [savedCollections, setSavedCollections] = useState<Collection[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Mock data for recent drafts
-  const recentDrafts = [
-    { id: 1, name: 'file name', size: '4mb', date: '29/5/2025' },
-    { id: 2, name: 'file name', size: '4mb', date: '29/5/2025' },
-    { id: 3, name: 'file name', size: '4mb', date: '29/5/2025' },
-    { id: 4, name: 'file name', size: '4mb', date: '29/5/2025' },
-    { id: 5, name: 'file name', size: '4mb', date: '29/5/2025' },
-  ];
+  useEffect(() => {
+    loadCollections();
+  }, []);
 
-  // Mock data for saved collections
-  const savedCollections = [
-    { id: 1, name: 'collection name', size: '4mb', date: '29/5/2025', image: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400' },
-    { id: 2, name: 'collection name', size: '4mb', date: '29/5/2025', image: 'https://images.unsplash.com/photo-1557426272-fc759fdf7a8d?w=400' },
-    { id: 3, name: 'collection name', size: '4mb', date: '29/5/2025', image: 'https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=400' },
-    { id: 4, name: 'collection name', size: '4mb', date: '29/5/2025', image: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=400' },
-    { id: 5, name: 'collection name', size: '4mb', date: '29/5/2025', image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400' },
-    { id: 6, name: 'collection name', size: '4mb', date: '29/5/2025', image: 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=400' },
-    { id: 7, name: 'collection name', size: '4mb', date: '29/5/2025', image: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400' },
-    { id: 8, name: 'collection name', size: '4mb', date: '29/5/2025', image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400' },
-  ];
+  const loadCollections = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Load recent drafts
+      const draftsResponse = await collectionsAPI.getRecentDrafts(5);
+      if (draftsResponse.success) {
+        setRecentDrafts(draftsResponse.drafts || []);
+      }
+
+      // Load published collections
+      const publishedResponse = await collectionsAPI.getPublished();
+      if (publishedResponse.success) {
+        setSavedCollections(publishedResponse.collections || []);
+      }
+    } catch (error) {
+      console.error('Failed to load collections:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load collections",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).replace(/\//g, '/');
+  };
+
+  const calculateSize = (collection: Collection) => {
+    // Simple size estimation
+    return '4mb'; // Placeholder - can be calculated based on actual data
+  };
+
+  const filteredCollections = savedCollections.filter(collection =>
+    collection.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <AppLayout>
@@ -84,83 +129,99 @@ export default function CollectionPage() {
             </Card>
 
             {/* Recent Draft Cards */}
-            {recentDrafts.map((draft) => (
-              <Card 
-                key={draft.id} 
-                className="hover:shadow-md transition-shadow cursor-pointer"
-                style={{
-                  width: '160px',
-                  height: '200px',
-                  borderRadius: '16px',
-                  border: '1px solid #E8E8E8',
-                  background: 'rgba(135, 135, 135, 0.06)',
-                  flexShrink: 0
-                }}
-              >
-                <CardContent className="p-4 h-full flex flex-col justify-between">
-                  <div className="flex items-start justify-between mb-4">
-                    <Folder className="h-8 w-8 text-gray-600" />
-                    <Button variant="ghost" size="icon" className="h-8 w-8 -mt-2 -mr-2">
-                      <MoreVertical className="h-4 w-4 text-gray-600" />
-                    </Button>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-800 mb-2">{draft.name}</p>
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span>{draft.size}</span>
-                      <span>{draft.date}</span>
+            {isLoading ? (
+              <div className="text-gray-500">Loading drafts...</div>
+            ) : recentDrafts.length === 0 ? (
+              <div className="text-gray-500 text-sm">No drafts yet. Create one to get started!</div>
+            ) : (
+              recentDrafts.map((draft) => (
+                <Card 
+                  key={draft._id} 
+                  className="hover:shadow-md transition-shadow cursor-pointer"
+                  style={{
+                    width: '160px',
+                    height: '200px',
+                    borderRadius: '16px',
+                    border: '1px solid #E8E8E8',
+                    background: 'rgba(135, 135, 135, 0.06)',
+                    flexShrink: 0
+                  }}
+                  onClick={() => router.push(`/collection/editor?id=${draft._id}`)}
+                >
+                  <CardContent className="p-4 h-full flex flex-col justify-between">
+                    <div className="flex items-start justify-between mb-4">
+                      <Folder className="h-8 w-8 text-gray-600" />
+                      <Button variant="ghost" size="icon" className="h-8 w-8 -mt-2 -mr-2">
+                        <MoreVertical className="h-4 w-4 text-gray-600" />
+                      </Button>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    <div>
+                      <p className="text-sm font-medium text-gray-800 mb-2 truncate">{draft.name}</p>
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <span>{calculateSize(draft)}</span>
+                        <span>{formatDate(draft.updatedAt)}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </section>
 
         {/* Row 4: Saved Collections */}
         <section>
           <h2 className="text-xl font-semibold text-gray-700 mb-4">Saved Collections</h2>
-          <div
-            className="grid gap-[40px]"
-            style={{
-              gridTemplateColumns: 'repeat(auto-fit, minmax(224px, 1fr))'
-            }}
-          >
-            {savedCollections.map((collection) => (
-              <Card 
-                key={collection.id} 
-                className="border-gray-200 hover:shadow-lg transition-shadow cursor-pointer overflow-hidden"
-                style={{
-                  width: '224px',
-                  height: '240px',
-                  borderRadius: '16px',
-                  flexShrink: 0
-                }}
-              >
-                <div 
-                  className="relative h-40"
+          {isLoading ? (
+            <div className="text-gray-500">Loading collections...</div>
+          ) : filteredCollections.length === 0 ? (
+            <div className="text-gray-500 text-sm">
+              {searchQuery ? 'No collections found matching your search.' : 'No saved collections yet. Create and publish one!'}
+            </div>
+          ) : (
+            <div
+              className="grid gap-[40px]"
+              style={{
+                gridTemplateColumns: 'repeat(auto-fit, minmax(224px, 1fr))'
+              }}
+            >
+              {filteredCollections.map((collection) => (
+                <Card 
+                  key={collection._id} 
+                  className="border-gray-200 hover:shadow-lg transition-shadow cursor-pointer overflow-hidden"
                   style={{
-                    backgroundImage: `url(${collection.image})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: '50%',
-                    backgroundRepeat: 'no-repeat',
-                    backgroundColor: '#D9D9D9'
+                    width: '224px',
+                    height: '240px',
+                    borderRadius: '16px',
+                    flexShrink: 0
                   }}
+                  onClick={() => router.push(`/collection/editor?id=${collection._id}`)}
                 >
-                  <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white">
-                    <MoreVertical className="h-4 w-4 text-gray-700" />
-                  </Button>
-                </div>
-                <CardContent className="p-4">
-                  <p className="text-sm font-medium text-gray-800 mb-2">{collection.name}</p>
-                  <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>{collection.size}</span>
-                    <span>{collection.date}</span>
+                  <div 
+                    className="relative h-40"
+                    style={{
+                      backgroundImage: collection.thumbnail ? `url(${collection.thumbnail})` : 'none',
+                      backgroundSize: 'cover',
+                      backgroundPosition: '50%',
+                      backgroundRepeat: 'no-repeat',
+                      backgroundColor: '#D9D9D9'
+                    }}
+                  >
+                    <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white">
+                      <MoreVertical className="h-4 w-4 text-gray-700" />
+                    </Button>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  <CardContent className="p-4">
+                    <p className="text-sm font-medium text-gray-800 mb-2 truncate">{collection.name}</p>
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <span>{calculateSize(collection)}</span>
+                      <span>{formatDate(collection.updatedAt)}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </AppLayout>
