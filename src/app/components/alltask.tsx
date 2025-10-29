@@ -49,7 +49,7 @@ export default function AllTasksPage({ onClose }: AllTasksPageProps = {}) {
   const [allTaskMembers, setAllTaskMembers] = useState<any[]>([]);
 
   // Use shared task context
-  const { tasks, loading, addTask, updateTask } = useTasks();
+  const { tasks, loading, addTask, updateTask, refreshTasks } = useTasks();
 
   // Get current user from auth context
   const { user } = useAuth();
@@ -247,6 +247,9 @@ export default function AllTasksPage({ onClose }: AllTasksPageProps = {}) {
       // Update in calendar/teams task system
       await updateTask(task._id, { status: newStatus });
       
+      // Refresh tasks to ensure UI is in sync
+      await refreshTasks();
+      
       // If task has projectId, also update in project tasks
       if (task.projectId) {
         try {
@@ -285,17 +288,16 @@ export default function AllTasksPage({ onClose }: AllTasksPageProps = {}) {
     <div className="flex h-screen w-full bg-white overflow-hidden">
       <Sidebar currentView={"calendar"} onViewChange={setCurrentView} />
 
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="flex items-center justify-between p-4 border-b shrink-0">
-          <div className="relative" style={{ width: '520px' }}>
+        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 p-3 sm:p-4 border-b shrink-0 min-w-0">
+          <div className="relative flex-1 w-full max-w-md sm:max-w-lg min-w-0">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
             <Input 
               placeholder="Find Something" 
-              className="pl-11 border-0" 
+              className="pl-11 border-0 w-full" 
               style={{
                 display: 'flex',
-                width: '520px',
                 padding: '12px 16px',
                 alignItems: 'center',
                 gap: '10px',
@@ -305,7 +307,7 @@ export default function AllTasksPage({ onClose }: AllTasksPageProps = {}) {
               }}
             />
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto flex-wrap sm:flex-nowrap">
             <span className="text-sm text-gray-500">{getLastEditedTime()}</span>
             <div className="flex -space-x-2">
               {allTaskMembers.length === 0 ? (
@@ -328,6 +330,7 @@ export default function AllTasksPage({ onClose }: AllTasksPageProps = {}) {
             <Button
               onClick={handleShareClick}
               variant="outline"
+              className="px-3 sm:px-4"
               style={{
                 display: 'flex',
                 padding: '8px 16px',
@@ -339,7 +342,8 @@ export default function AllTasksPage({ onClose }: AllTasksPageProps = {}) {
                 background: '#FFF'
               }}
             >
-              <Share className="w-4 h-4"/>Share
+              <Share className="w-4 h-4"/>
+              <span className="hidden sm:inline">Share</span>
             </Button>
           </div>
         </header>
@@ -403,9 +407,9 @@ export default function AllTasksPage({ onClose }: AllTasksPageProps = {}) {
               )}
 
               {/* Bottom Row */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 8 }}>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                  <div className="flex items-center gap-2">
                     <span style={{ fontSize: 14, fontWeight: 600, color: '#222' }}>{currentMonth}</span>
                     <span style={{ fontSize: 14, fontWeight: 600, color: '#222' }}>{currentYear}</span>
                     <Button variant="ghost" size="icon" className="w-8 h-8">
@@ -463,7 +467,7 @@ export default function AllTasksPage({ onClose }: AllTasksPageProps = {}) {
                     List
                   </Button>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -486,10 +490,12 @@ export default function AllTasksPage({ onClose }: AllTasksPageProps = {}) {
             {viewMode === "calendar" ? (
               <>
                 {/* Weekdays header */}
-                <div className="flex items-center mb-2 shrink-0" style={{ paddingLeft: '70px' }}>
+                <div className="flex items-center mb-2 shrink-0 overflow-x-auto min-w-0">
+                  <div className="flex items-center min-w-max" style={{ paddingLeft: '70px' }}>
                   {daysOfWeek.map((day) => (
                     <div key={day} className="text-center font-semibold" style={{
                       flex: 1,
+                      minWidth: '100px',
                       color: '#846BD2',
                       fontSize: '1rem',
                       fontWeight: 500,
@@ -498,12 +504,13 @@ export default function AllTasksPage({ onClose }: AllTasksPageProps = {}) {
                       {day}
                     </div>
                   ))}
+                  </div>
                 </div>
 
                 {/* Calendar Grid */}
                 <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-gray-200">
-              <div className="grid" style={{
-                gridTemplateColumns: '70px repeat(7, 1fr)',
+              <div className="grid min-w-[800px]" style={{
+                gridTemplateColumns: '70px repeat(7, minmax(100px, 1fr))',
                 gridTemplateRows: `repeat(${timeSlots.length}, minmax(0, 0.8fr))`,
                 minHeight: '100%'
               }}>
@@ -886,11 +893,11 @@ export default function AllTasksPage({ onClose }: AllTasksPageProps = {}) {
         }}
       >
         <div
+          className="w-full max-w-md mx-4"
           style={{
             borderRadius: 24,
             background: '#FFF',
             boxShadow: '0 4px 16px 0 rgba(0, 0, 0, 0.20), 35px 45px 73px 0 rgba(32, 32, 35, 0.07)',
-            width: 480,
             padding: '32px 32px 24px 32px',
             display: 'flex',
             flexDirection: 'column',

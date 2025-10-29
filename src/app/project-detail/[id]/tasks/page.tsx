@@ -312,7 +312,7 @@ export default function ProjectTasksPage() {
 
         {/* Table */}
         <div className="flex-1 overflow-auto px-8 py-6">
-          <div className="border rounded-lg overflow-hidden">
+          <div className="border rounded-lg overflow-visible">
             {/* Table Header */}
             <div className="grid grid-cols-[80px_1fr_200px_180px_180px_180px_180px] bg-gray-50 border-b">
               <div className="px-4 py-3 text-sm font-medium text-gray-700 border-r">No.</div>
@@ -349,7 +349,8 @@ export default function ProjectTasksPage() {
                   tasks.map((task, index) => (
                     <div
                       key={task.id}
-                      className="grid grid-cols-[80px_1fr_200px_180px_180px_180px_180px] border-b last:border-b-0 hover:bg-gray-50 transition-colors"
+                      className="grid grid-cols-[80px_1fr_200px_180px_180px_180px_180px] border-b last:border-b-0 hover:bg-gray-50 transition-colors relative"
+                      style={{ zIndex: tasks.length - index }}
                     >
                       {/* No. */}
                       <div className="px-4 py-3 flex items-center border-r text-sm">
@@ -416,7 +417,7 @@ export default function ProjectTasksPage() {
                         
                         {/* Priority Dropdown */}
                         {openDropdown?.taskId === task.id && openDropdown?.type === 'priority' && (
-                          <div className="absolute top-full left-4 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 min-w-[140px]">
+                          <div className="absolute top-full left-4 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[140px]" style={{ zIndex: 9999 }}>
                             {priorityOptions.map((option) => (
                               <div
                                 key={option.value}
@@ -461,7 +462,7 @@ export default function ProjectTasksPage() {
                         
                         {/* Time Tracker Dropdown */}
                         {openDropdown?.taskId === task.id && openDropdown?.type === 'timeTracker' && (
-                          <div className="absolute top-full left-4 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 min-w-[120px]">
+                          <div className="absolute top-full left-4 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[120px]" style={{ zIndex: 9999 }}>
                             {timeTrackerOptions.map((option) => (
                               <div
                                 key={option.value}
@@ -514,7 +515,7 @@ export default function ProjectTasksPage() {
                         
                         {/* Status Dropdown */}
                         {openDropdown?.taskId === task.id && openDropdown?.type === 'status' && (
-                          <div className="absolute top-full left-4 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 min-w-[140px]">
+                          <div className="absolute top-full left-4 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[140px]" style={{ zIndex: 9999 }}>
                             {statusOptions.map((option) => (
                               <div
                                 key={option.value}

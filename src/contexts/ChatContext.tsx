@@ -192,10 +192,39 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         isMedia: data.isMedia || !!data.mediaUrl,
     });
 
+    // Helper function to ensure chat exists in the list
+    const ensureChatExists = (chatName: string, data: ChatMessage) => {
+      console.log(`ensureChatExists called - chatName: ${chatName}, sender: ${data.sender}, currentUser: ${currentUserEmail}, mode: ${data.mode}`);
+      
+      // Only create chat for incoming messages (not from current user)
+      if (data.mode === 'private' && data.sender !== currentUserEmail) {
+        setChitChatChats(prev => {
+          const chatExists = prev.some(chat => chat.name === chatName);
+          console.log(`Chat exists check: ${chatExists} for ${chatName}`);
+          if (!chatExists) {
+            console.log(`✅ Creating new chat card for: ${chatName}`);
+            return [...prev, {
+              name: chatName,
+              role: 'New Chat',
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              status: 'online',
+              avatar: `https://i.pravatar.cc/150?u=${chatName}`,
+            }];
+          }
+          return prev;
+        });
+      } else {
+        console.log(`❌ Not creating chat - mode: ${data.mode}, isFromCurrentUser: ${data.sender === currentUserEmail}`);
+      }
+    };
+
     const handleIncomingMessage = (data: ChatMessage) => {
         const chatName = data.groupName || (data.sender === currentUserEmail ? data.receiver : data.sender);
         if (chatName) {
             const message = createMessage(data, data.sender === currentUserEmail);
+            
+            // Ensure chat exists before adding message
+            ensureChatExists(chatName, data);
             
             // Add message to state
             setMessages(prev => ({
@@ -210,23 +239,6 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
                     [chatName]: (prev[chatName] || 0) + 1,
                 }));
             }
-
-            // Create new chat if it doesn't exist
-            if (data.mode === 'private' && data.sender !== currentUserEmail) {
-                setChitChatChats(prev => {
-                  const chatExists = prev.some(chat => chat.name === chatName);
-                  if (!chatExists) {
-                    return [...prev, {
-                      name: chatName,
-                      role: 'New Chat',
-                      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                      status: 'online',
-                      avatar: `https://i.pravatar.cc/150?u=${chatName}`,
-                    }];
-                  }
-                  return prev;
-                });
-            }
         }
     };
 
@@ -236,6 +248,9 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         const chatName = data.groupName || (data.sender === currentUserEmail ? data.receiver : data.sender);
         if (chatName) {
             const message = createMessage({ ...data, isMedia: true }, data.sender === currentUserEmail);
+            
+            // Ensure chat exists before adding message (important for new users sending media)
+            ensureChatExists(chatName, data);
             
             // Add message to state
             setMessages(prev => ({

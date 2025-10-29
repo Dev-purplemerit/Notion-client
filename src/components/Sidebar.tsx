@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import Image from "next/image";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import {
@@ -113,7 +114,19 @@ export const Sidebar = ({ currentView, onViewChange }: SidebarProps) => {
       <div className="w-full" style={{ paddingLeft: '24px', paddingRight: '24px' }}>
         <div className="h-8 flex items-center justify-between w-full">
           {!isCollapsed && (
-            <span className="text-2xl font-bold text-primary">Purple Merit</span>
+            <div className="flex items-center gap-2">
+              <Image 
+                src="/purplemerit.svg" 
+                alt="Purple Merit Logo" 
+                width={40} 
+                height={40}
+                priority
+              />
+              <span className="text-2xl font-bold">
+                <span className="text-black">Purple</span>
+                <span className="text-white"> Merit</span>
+              </span>
+            </div>
           )}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}

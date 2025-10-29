@@ -400,10 +400,10 @@ export default function Page() {
     <div className="flex h-screen w-full bg-white overflow-hidden">
       <Sidebar currentView={"calendar"} onViewChange={setCurrentView} />
 
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 p-3 sm:p-4 border-b shrink-0">
-            <div className="relative flex-1 w-full max-w-md">
+        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 p-3 sm:p-4 border-b shrink-0 min-w-0">
+            <div className="relative flex-1 w-full max-w-md min-w-0">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <Input
                     placeholder="Find Something"
@@ -472,8 +472,8 @@ export default function Page() {
                         </Button>
                     </div>
                 </div>
-                <div className="flex items-center justify-between mb-6 shrink-0 border-y py-3">
-          <div className="inline-flex items-center"
+                <div className="flex items-center justify-between mb-6 shrink-0 border-y py-3 overflow-x-auto">
+          <div className="inline-flex items-center min-w-max"
             style={{
               paddingLeft: '70px',
               background: '#F8F7FF', // match main content
@@ -518,9 +518,9 @@ export default function Page() {
                     ))}
                 </div>                {/* Calendar Grid */}
                 <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-gray-200">
-                    <div className="grid" style={{ 
-                        gridTemplateColumns: '70px repeat(7, 1fr)', 
-                        gridTemplateRows: `repeat(${timeSlots.length}, minmax(0, 0.8fr))`,
+                    <div className="grid min-w-[800px]" style={{ 
+                        gridTemplateColumns: '70px repeat(7, minmax(100px, 1fr))', 
+                        gridTemplateRows: `repeat(${timeSlots.length}, minmax(60px, 0.8fr))`,
                         minHeight: '100%'
                     }}>
             {/* ...existing code... */}
