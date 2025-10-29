@@ -284,8 +284,12 @@ export default function CollectionEditorPage() {
                   return (
                     <div
                       key={cellId}
-                      className="relative group bg-white border border-gray-300 overflow-hidden"
-                      style={{ backgroundColor: cell.backgroundColor }}
+                      className="relative group bg-white overflow-hidden"
+                      style={{ 
+                        backgroundColor: cell.backgroundColor,
+                        border: '1px solid #AAA',
+                        borderRadius: '8px 0 0 0'
+                      }}
                     >
                       {/* Cell Content */}
                       {renderCellContent(cell)}
@@ -434,7 +438,7 @@ export default function CollectionEditorPage() {
               onClick={addColumn}
               className="rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
               style={{
-                width: '112px',
+                width: '32px',
                 height: `${rows * 56 + (rows - 1) * 12 + 2}px`,
                 flexShrink: 0,
                 writingMode: 'vertical-rl',
