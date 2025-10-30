@@ -269,7 +269,7 @@ const ChatSidebar = ({
                   }} />
                 ))
               ) : teamSearchQuery ? (
-                <p className="text-xs text-muted-foreground text-center py-4">No teams found matching "{teamSearchQuery}"</p>
+                <p className="text-xs text-muted-foreground text-center py-4">No teams found matching &quot;{teamSearchQuery}&quot;</p>
               ) : (
                 <p className="text-xs text-muted-foreground text-center py-4">No team chats yet. Click + to add one.</p>
               )}
@@ -355,7 +355,7 @@ const ChatSidebar = ({
                   }} />
                 ))
               ) : chitchatSearchQuery ? (
-                <p className="text-xs text-muted-foreground text-center py-4">No chats found matching "{chitchatSearchQuery}"</p>
+                <p className="text-xs text-muted-foreground text-center py-4">No chats found matching &quot;{chitchatSearchQuery}&quot;</p>
               ) : (
                 <p className="text-xs text-muted-foreground text-center py-4">No chats yet. Click + to add one.</p>
               )}
