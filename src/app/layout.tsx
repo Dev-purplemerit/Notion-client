@@ -5,6 +5,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ChatProvider } from "@/contexts/ChatContext";
 import { TaskProvider } from "@/contexts/TaskContext";
 import { Toaster } from "@/components/ui/toaster";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,14 +32,16 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider>
-          <TaskProvider>
-            <ChatProvider>
-              {children}
-            </ChatProvider>
-          </TaskProvider>
-        </AuthProvider>
-        <Toaster />
+        <ErrorBoundary>
+          <AuthProvider>
+            <TaskProvider>
+              <ChatProvider>
+                {children}
+              </ChatProvider>
+            </TaskProvider>
+          </AuthProvider>
+          <Toaster />
+        </ErrorBoundary>
       </body>
     </html>
   );

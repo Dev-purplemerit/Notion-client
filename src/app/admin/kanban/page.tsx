@@ -109,9 +109,10 @@ export default function KanbanPage() {
 
       // Try to load project data (optional)
       try {
-        const projectsData = await projectsAPI.getAll().catch(() => []);
+        const projectsData = await projectsAPI.getAll();
+        console.log('Projects loaded:', projectsData);
         setProjects(projectsData || []);
-        if (projectsData.length > 0) {
+        if (projectsData && projectsData.length > 0) {
           setProject(projectsData[0]);
 
           // Load project members
@@ -119,8 +120,9 @@ export default function KanbanPage() {
             setProjectMembers(projectsData[0].members);
           }
         }
-      } catch {
-        console.log("Could not load project data");
+      } catch (error) {
+        console.error("Failed to load projects:", error);
+        setProjects([]);
       }
 
       // Load kanban board configuration
