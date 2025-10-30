@@ -13,6 +13,7 @@ import {
   Search,
   Plus,
   Loader2,
+  Menu,
 } from "lucide-react";
 import { getChatSocket, setAuthErrorCallback, resetChatSocket, sendPrivateMessage, sendGroupMessage, sendMediaFile, initiateCall, answerCall, sendCallICECandidate, rejectCall, endCall, type ChatMessage } from "@/lib/socket";
 import { useToast } from "@/hooks/use-toast";
@@ -66,16 +67,28 @@ const ChatListItem = ({ chat, onClick }: { chat: Chat; onClick: () => void }) =>
   </div>
 );
 
-const MessageBubble = ({ message }: { message: Message }) => (
+const MessageBubble = ({ message }: { message: Message }) => {
+  const getInitials = (name: string) => {
+    if (!name) return '??';
+    return name
+      .split(' ')
+      .filter(n => n.length > 0)
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  return (
   <div className={`flex items-end gap-3 ${message.isOwn ? 'justify-end' : 'justify-start'}`}>
     {!message.isOwn && (
       <Avatar className="w-8 h-8 flex-shrink-0">
         <AvatarImage src={message.avatar} />
-        <AvatarFallback>{message.sender.split(' ').map((n: string) => n[0]).join('')}</AvatarFallback>
+        <AvatarFallback>{getInitials(message.sender)}</AvatarFallback>
       </Avatar>
     )}
-    <div className={`max-w-[70%] p-3 rounded-xl shadow-sm ${message.isOwn ? 'bg-white' : 'bg-white'}`}>
-      <span className={`text-sm font-semibold mb-1 block ${message.isOwn ? 'text-primary' : 'text-foreground'}`}>
+    <div className={`max-w-[70%] p-3 rounded-xl shadow-sm ${message.isOwn ? 'bg-purple-100' : 'bg-white'}`}>
+      <span className={`text-sm font-semibold mb-1 block ${message.isOwn ? 'text-purple-700' : 'text-foreground'}`}>
         {message.sender}
       </span>
       {message.isMedia && message.mediaUrl ? (
@@ -104,11 +117,12 @@ const MessageBubble = ({ message }: { message: Message }) => (
     {message.isOwn && (
       <Avatar className="w-8 h-8 flex-shrink-0">
         <AvatarImage src={message.avatar} />
-        <AvatarFallback>{message.sender.split(' ').map((n: string) => n[0]).join('')}</AvatarFallback>
+        <AvatarFallback>{getInitials(message.sender)}</AvatarFallback>
       </Avatar>
     )}
   </div>
-);
+  );
+};
 
 const ChatSidebar = ({
   chats,
@@ -127,6 +141,12 @@ const ChatSidebar = ({
   isSearchingUsers,
   handleUserSearch,
   handleSelectUserFromSearch,
+  teamSearchQuery,
+  setTeamSearchQuery,
+  chitchatSearchQuery,
+  setChitchatSearchQuery,
+  isOpen,
+  onClose,
 }: {
   chats: { team: Chat[]; chitchat: Chat[] };
   onSelectChat: (chat: Chat) => void;
@@ -144,20 +164,38 @@ const ChatSidebar = ({
   isSearchingUsers: boolean;
   handleUserSearch: (query: string) => void;
   handleSelectUserFromSearch: (user: User) => void;
+  teamSearchQuery: string;
+  setTeamSearchQuery: (query: string) => void;
+  chitchatSearchQuery: string;
+  setChitchatSearchQuery: (query: string) => void;
+  isOpen: boolean;
+  onClose: () => void;
 }) => {
   const getInitials = (name: string) => {
     if (!name) return '??';
     return name
       .split(' ')
+      .filter(n => n.length > 0)
       .map((n) => n[0])
       .join('')
       .toUpperCase()
       .slice(0, 2);
   };
 
+  // Filter chats based on search query
+  const filteredTeamChats = chats.team.filter(chat =>
+    chat.name.toLowerCase().includes(teamSearchQuery.toLowerCase()) ||
+    chat.role.toLowerCase().includes(teamSearchQuery.toLowerCase())
+  );
+
+  const filteredChitchats = chats.chitchat.filter(chat =>
+    chat.name.toLowerCase().includes(chitchatSearchQuery.toLowerCase()) ||
+    chat.role.toLowerCase().includes(chitchatSearchQuery.toLowerCase())
+  );
+
   return (
   <div
-    className="border-l bg-white hidden lg:flex lg:flex-shrink-0 h-full overflow-y-auto w-full lg:w-96 xl:w-[400px] flex-col gap-6 p-4 sm:p-6"
+    className={`fixed lg:relative inset-y-0 right-0 z-50 border-l bg-white flex lg:flex-shrink-0 h-full overflow-y-auto w-full sm:w-96 xl:w-[400px] flex-col gap-6 p-4 sm:p-6 transform transition-transform duration-300 ${isOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`}
   >
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '16px', alignSelf: 'stretch', flex: 1, minHeight: 0 }}>
       <h3 className="text-lg font-semibold text-foreground flex-shrink-0">Messages</h3>
@@ -176,7 +214,12 @@ const ChatSidebar = ({
         <TabsContent value="team" className="mt-4" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '16px', flexShrink: 0, alignSelf: 'stretch', flex: 1, minHeight: 0 }}>
           <div className="relative w-full flex-shrink-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-            <Input placeholder="Search inbox" className="pl-9" />
+            <Input 
+              placeholder="Search inbox" 
+              className="pl-9" 
+              value={teamSearchQuery}
+              onChange={(e) => setTeamSearchQuery(e.target.value)}
+            />
           </div>
 
           <div className="w-full flex-1 overflow-y-auto">
@@ -218,10 +261,15 @@ const ChatSidebar = ({
             )}
 
             <div className="space-y-1">
-              {chats.team.length > 0 ? (
-                chats.team.map((chat, index) => (
-                  <ChatListItem key={index} chat={chat} onClick={() => onSelectChat(chat)} />
+              {filteredTeamChats.length > 0 ? (
+                filteredTeamChats.map((chat, index) => (
+                  <ChatListItem key={index} chat={chat} onClick={() => {
+                    onSelectChat(chat);
+                    onClose();
+                  }} />
                 ))
+              ) : teamSearchQuery ? (
+                <p className="text-xs text-muted-foreground text-center py-4">No teams found matching "{teamSearchQuery}"</p>
               ) : (
                 <p className="text-xs text-muted-foreground text-center py-4">No team chats yet. Click + to add one.</p>
               )}
@@ -229,10 +277,15 @@ const ChatSidebar = ({
           </div>
         </TabsContent>
 
-        <TabsContent value="chitchat" className="mt-4" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '20px', flexShrink: 0, alignSelf: 'stretch', flex: 1, minHeight: 0 }}>
+        <TabsContent value="chitchat" className="mt-4" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '16px', flexShrink: 0, alignSelf: 'stretch', flex: 1, minHeight: 0 }}>
           <div className="relative w-full flex-shrink-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-            <Input placeholder="Search inbox" className="pl-9" />
+            <Input 
+              placeholder="Search inbox" 
+              className="pl-9"
+              value={chitchatSearchQuery}
+              onChange={(e) => setChitchatSearchQuery(e.target.value)}
+            />
           </div>
 
           <div className="w-full flex-1 overflow-y-auto">
@@ -294,10 +347,15 @@ const ChatSidebar = ({
             )}
 
             <div className="space-y-1">
-              {chats.chitchat.length > 0 ? (
-                chats.chitchat.map((chat, index) => (
-                  <ChatListItem key={index} chat={chat} onClick={() => onSelectChat(chat)} />
+              {filteredChitchats.length > 0 ? (
+                filteredChitchats.map((chat, index) => (
+                  <ChatListItem key={index} chat={chat} onClick={() => {
+                    onSelectChat(chat);
+                    onClose();
+                  }} />
                 ))
+              ) : chitchatSearchQuery ? (
+                <p className="text-xs text-muted-foreground text-center py-4">No chats found matching "{chitchatSearchQuery}"</p>
               ) : (
                 <p className="text-xs text-muted-foreground text-center py-4">No chats yet. Click + to add one.</p>
               )}
@@ -331,6 +389,10 @@ export default function Chat() {
   const [newTeamName, setNewTeamName] = useState("");
   const [userSearchResults, setUserSearchResults] = useState<User[]>([]);
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
+  const [isChatSidebarOpen, setIsChatSidebarOpen] = useState(false);
+  const [teamSearchQuery, setTeamSearchQuery] = useState("");
+  const [chitchatSearchQuery, setChitchatSearchQuery] = useState("");
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   // Call state
   const [isCallModalOpen, setIsCallModalOpen] = useState(false);
@@ -736,6 +798,7 @@ export default function Chat() {
 
   const handleSelectChat = async (chat: Chat) => {
     setSelectedChat(chat);
+    setIsLoadingHistory(true);
 
     // Use the chat name as the key (which is the email for direct chats)
     const chatKey = chat.name;
@@ -783,6 +846,8 @@ export default function Chat() {
     } catch (error) {
       console.error('Failed to load message history:', error);
       // Don't show error toast, just continue with local messages
+    } finally {
+      setIsLoadingHistory(false);
     }
   };
 
@@ -901,6 +966,16 @@ export default function Chat() {
           {/* Header */}
           <div className="flex items-center justify-between p-3 sm:p-4 border-b bg-white z-10 flex-shrink-0">
             <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
+              {/* Mobile Sidebar Toggle */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="lg:hidden text-muted-foreground h-8 w-8 flex-shrink-0"
+                onClick={() => setIsChatSidebarOpen(!isChatSidebarOpen)}
+              >
+                <Menu size={20} />
+              </Button>
+              
               {selectedChat ? (
                 <>
                   <Avatar className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
@@ -953,7 +1028,14 @@ export default function Chat() {
             }}
           >
             {selectedChat ? (
-              messages.length > 0 ? (
+              isLoadingHistory ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <Loader2 className="w-8 h-8 mx-auto mb-2 animate-spin text-primary" />
+                    <p className="text-sm text-muted-foreground">Loading messages...</p>
+                  </div>
+                </div>
+              ) : messages.length > 0 ? (
                 messages.map((msg) => (
                   <MessageBubble key={msg.id} message={msg} />
                 ))
@@ -985,7 +1067,7 @@ export default function Chat() {
 
           {/* Input */}
           <div className="p-3 sm:p-4 border-t bg-white flex-shrink-0 flex justify-center">
-            <div className="flex flex-col justify-center items-center gap-2 rounded-2xl border border-gray-300 bg-white p-3 sm:p-4 w-full max-w-2xl">
+            <div className="flex flex-col justify-center items-center gap-2 rounded-2xl border border-gray-300 bg-white p-3 sm:p-4 w-full max-w-4xl">
               <div className="flex items-center w-full gap-1 sm:gap-2">
                 <Button variant="ghost" size="icon" className="text-muted-foreground h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0" disabled={!selectedChat}>
                   {/* Custom Smile SVG */}
@@ -1062,6 +1144,12 @@ export default function Chat() {
           isSearchingUsers={isSearchingUsers}
           handleUserSearch={handleUserSearch}
           handleSelectUserFromSearch={handleSelectUserFromSearch}
+          isOpen={isChatSidebarOpen}
+          onClose={() => setIsChatSidebarOpen(false)}
+          teamSearchQuery={teamSearchQuery}
+          setTeamSearchQuery={setTeamSearchQuery}
+          chitchatSearchQuery={chitchatSearchQuery}
+          setChitchatSearchQuery={setChitchatSearchQuery}
         />
       </div>
 

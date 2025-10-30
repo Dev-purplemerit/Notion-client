@@ -206,13 +206,16 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const createMessage = (data: ChatMessage, isOwn: boolean = false): Message => {
       // Use server's createdAt timestamp if available, otherwise use current time
       const timestamp = data.createdAt ? new Date(data.createdAt) : new Date();
+      const createdAtStr = data.createdAt 
+        ? (typeof data.createdAt === 'string' ? data.createdAt : data.createdAt.toISOString())
+        : timestamp.toISOString();
 
       return {
         id: data._id || `${Date.now()}-${Math.random()}`,
         sender: data.sender,
         content: data.text || data.filename || 'Media file',
         time: timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        createdAt: data.createdAt || timestamp.toISOString(),
+        createdAt: createdAtStr,
         avatar: `https://i.pravatar.cc/150?u=${data.sender}`,
         isOwn,
         mediaUrl: data.mediaUrl,
