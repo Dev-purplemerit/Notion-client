@@ -131,7 +131,7 @@ export const Sidebar = ({ currentView, onViewChange }: SidebarProps) => {
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
             className={`hover:opacity-70 transition-opacity ${isCollapsed ? 'mx-auto' : ''}`}
-            style={isCollapsed ? {} : { marginLeft: 'auto' }}
+            style={isCollapsed ? {} : { marginLeft: 'auto', marginRight: '-20px' }}
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {isCollapsed ? (
