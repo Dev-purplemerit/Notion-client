@@ -43,6 +43,7 @@ export default function LoginPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Important: Include cookies in the request
         body: JSON.stringify({ email, password }),
       });
 
@@ -52,9 +53,14 @@ export default function LoginPage() {
         throw new Error(data.message || 'Login failed');
       }
 
-      // Save token to localStorage
-      localStorage.setItem('accessToken', data.accessToken);
+      // Check if 2FA is required
+      if (data.requires2FA) {
+        // TODO: Redirect to 2FA verification page
+        router.push(`/verify-2fa?email=${encodeURIComponent(email)}`);
+        return;
+      }
 
+      // Authentication successful (cookies are set by the server)
       // Redirect to dashboard
       router.push('/dashboard');
     } catch (err: any) {

@@ -44,6 +44,7 @@ export default function SignupPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Important: Include cookies in the request
         body: JSON.stringify({ email, password, name }),
       });
 
@@ -53,8 +54,8 @@ export default function SignupPage() {
         throw new Error(data.message || 'Signup failed');
       }
 
-      // Save token
-      localStorage.setItem('accessToken', data.accessToken);
+      // Authentication successful (cookies are set by the server)
+      // Redirect to dashboard
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message);

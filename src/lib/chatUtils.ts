@@ -12,8 +12,19 @@ export function deduplicateMessages(messages: Message[]): Message[] {
   const result: Message[] = [];
 
   for (const msg of messages) {
-    // Create a unique key based on ID (if available) or content+time+sender
-    const key = msg.id || `${msg.sender}-${msg.content}-${msg.time}`;
+    // Create a unique key based on MongoDB _id (preferred) or content+createdAt+sender
+    // Using createdAt instead of time for precise deduplication
+    let key: string;
+    if (msg.id && !msg.id.startsWith('offline-') && msg.id.length === 24) {
+      // MongoDB ObjectId is 24 characters - use as primary key
+      key = msg.id;
+    } else if (msg.createdAt) {
+      // Use ISO timestamp for precise deduplication
+      key = `${msg.sender}-${msg.content}-${msg.createdAt}`;
+    } else {
+      // Fallback to formatted time (less precise)
+      key = `${msg.sender}-${msg.content}-${msg.time}`;
+    }
 
     if (!seen.has(key)) {
       seen.add(key);
@@ -34,22 +45,40 @@ export function mergeMessages(
 ): Message[] {
   const merged = new Map<string, Message>();
 
+  // Helper to generate consistent key
+  const getMessageKey = (msg: Message): string => {
+    if (msg.id && !msg.id.startsWith('offline-') && msg.id.length === 24) {
+      return msg.id;
+    } else if (msg.createdAt) {
+      return `${msg.sender}-${msg.content}-${msg.createdAt}`;
+    } else {
+      return `${msg.sender}-${msg.content}-${msg.time}`;
+    }
+  };
+
   // Add local messages first
   for (const msg of localMessages) {
-    const key = msg.id || `${msg.sender}-${msg.content}-${msg.time}`;
+    const key = getMessageKey(msg);
     merged.set(key, msg);
   }
 
   // Add/update with server messages (they take priority)
   for (const msg of serverMessages) {
-    // Server messages should have proper IDs
-    if (msg.id) {
-      merged.set(msg.id, msg);
-    } else {
-      // Fallback key for server messages without ID
-      const key = `${msg.sender}-${msg.content}-${msg.time}`;
-      merged.set(key, msg);
+    const key = getMessageKey(msg);
+
+    // Check if we have a local message with temp ID that matches this server message
+    // If server message has proper ID, also try to find and replace temp ID version
+    if (msg.id && msg.id.length === 24) {
+      // Look for local messages with same content+sender+time
+      const contentKey = msg.createdAt
+        ? `${msg.sender}-${msg.content}-${msg.createdAt}`
+        : `${msg.sender}-${msg.content}-${msg.time}`;
+
+      // Remove potential duplicate with temp ID
+      merged.delete(contentKey);
     }
+
+    merged.set(key, msg);
   }
 
   // Convert to array and sort by createdAt timestamp

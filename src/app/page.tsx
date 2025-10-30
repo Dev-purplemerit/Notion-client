@@ -5,22 +5,22 @@ import { useRouter } from 'next/navigation';
 import { Sidebar } from "@/components/Sidebar";
 import { TopNavigation } from "@/components/TopNavigation";
 import { ProjectList } from "@/components/ProjectList";
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Dashboard() {
   const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const { user, loading: authLoading, isAuthenticated } = useAuth();
   const [currentView, setCurrentView] = useState("dashboard");
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
+    // Wait for auth to load
+    if (authLoading) return;
+    
+    // If not authenticated, redirect to login
+    if (!isAuthenticated) {
       router.push('/login');
-    } else {
-      setIsAuthenticated(true);
     }
-    setLoading(false);
-  }, [router]);
+  }, [isAuthenticated, authLoading, router]);
 
   const handleViewChange = (view: string) => {
     if (view === "chat") {
@@ -38,7 +38,7 @@ export default function Dashboard() {
     }
   };
 
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-xl">Loading...</div>

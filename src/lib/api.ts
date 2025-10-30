@@ -135,7 +135,7 @@ export const authAPI = {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      window.location.href = '/';
+      window.location.href = '/login';
     }
   },
 

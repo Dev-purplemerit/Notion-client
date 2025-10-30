@@ -4,31 +4,15 @@
 import React from "react";
 import { Home, Mail, Users, BarChart3, Settings, LogOut, BookOpen } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { usePathname } from "next/navigation";
+import { authAPI } from "@/lib/api";
 
 export default function AdminSidebar() {
   const pathname = usePathname();
-  const router = useRouter();
-  const { logout } = useAuth();
-  const { toast } = useToast();
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      toast({
-        title: "Logged out",
-        description: "You have been successfully logged out",
-      });
-      router.push('/');
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to logout",
-        variant: "destructive",
-      });
-    }
+  const handleLogout = () => {
+    // authAPI.logout() handles the redirect automatically
+    authAPI.logout();
   };
 
   const navItems = [
