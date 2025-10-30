@@ -90,21 +90,23 @@ export default function AdminSidebar() {
       {/* Bottom Section */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 24, paddingBottom: 24 }}>
         {/* Settings Icon */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            cursor: "pointer",
-          }}
-        >
-          <Settings 
-            size={24} 
-            color="#4A3F8F" 
-            strokeWidth={2} 
-            style={{ width: 24, height: 24, flexShrink: 0 }} 
-          />
-        </div>
+        <Link href="/admin/settings" style={{ textDecoration: "none" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              cursor: "pointer",
+            }}
+          >
+            <Settings
+              size={24}
+              color={pathname?.startsWith('/admin/settings') ? "#8B7BE8" : "#4A3F8F"}
+              strokeWidth={2}
+              style={{ width: 24, height: 24, flexShrink: 0 }}
+            />
+          </div>
+        </Link>
 
         {/* Logout Icon */}
         <div

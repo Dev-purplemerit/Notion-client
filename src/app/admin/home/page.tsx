@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import AdminSidebar from "@/components/adminSidebar";
 import { Search, ShoppingBag, FileText, Rocket, Users, Bell, MessageSquare, ChevronDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { dashboardAPI, userAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AdminHomePage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("Activity");
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -36,6 +38,12 @@ export default function AdminHomePage() {
     }))
   );
   const { toast } = useToast();
+
+  // Notifications state
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const notificationRef = React.useRef<HTMLDivElement>(null);
 
   const loadMonthSpecificData = useCallback(async () => {
     try {
@@ -80,12 +88,28 @@ export default function AdminHomePage() {
     }
   }, [selectedMonth, selectedYear]);
 
+  const loadNotifications = useCallback(async () => {
+    try {
+      // Fetch notifications using the same recent activities API
+      const notificationsData = await dashboardAPI.getRecentActivities({ limit: 20 }).catch((err) => {
+        console.error('Error loading notifications:', err);
+        return [];
+      });
+
+      setNotifications(notificationsData || []);
+      // Count unread notifications (for now, all are unread)
+      setUnreadCount((notificationsData || []).length);
+    } catch (error: any) {
+      console.error('Error loading notifications:', error);
+    }
+  }, []);
+
   const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true);
 
       // Fetch initial data in parallel
-      const [userData, monthlyActivity, activeMembers] = await Promise.all([
+      const [userData, monthlyActivity] = await Promise.all([
         userAPI.getProfile().catch((err) => {
           console.error('Error loading user profile:', err);
           return null;
@@ -99,14 +123,42 @@ export default function AdminHomePage() {
             total: 0,
           }));
         }),
-        dashboardAPI.getActiveMembers(10).catch((err) => {
-          console.error('Error loading active members:', err);
-          return [];
-        }),
       ]);
 
+      // Fetch real users from admin endpoint
+      try {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+        const response = await fetch(`${API_URL}/users/admin/all`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const users = await response.json();
+          if (Array.isArray(users)) {
+            // Map users to a consistent format
+            const formattedUsers = users.slice(0, 10).map((user: any) => ({
+              _id: user._id || user.id,
+              name: user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email.split('@')[0],
+              email: user.email,
+              avatar: user.avatar || user.avatarUrl,
+            }));
+            setTeamMembers(formattedUsers);
+          } else {
+            setTeamMembers([]);
+          }
+        } else {
+          console.error('Failed to fetch users:', response.statusText);
+          setTeamMembers([]);
+        }
+      } catch (err) {
+        console.error('Error loading users:', err);
+        setTeamMembers([]);
+      }
+
       setCurrentUser(userData);
-      setTeamMembers(activeMembers || []);
 
       // Process monthly activity data and normalize to percentage
       if (monthlyActivity && Array.isArray(monthlyActivity) && monthlyActivity.length > 0) {
@@ -146,6 +198,9 @@ export default function AdminHomePage() {
       // Load month-specific data
       await loadMonthSpecificData();
 
+      // Load notifications
+      await loadNotifications();
+
     } catch (error: any) {
       console.error('Error loading dashboard data:', error);
       toast({
@@ -173,6 +228,23 @@ export default function AdminHomePage() {
     // Reload data when month changes
     loadMonthSpecificData();
   }, [loadMonthSpecificData]);
+
+  // Handle outside click for notifications dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    };
+
+    if (showNotifications) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showNotifications]);
 
   const formatTimeAgo = (dateString: string) => {
     if (!dateString) return 'Recently';
@@ -257,9 +329,58 @@ export default function AdminHomePage() {
               <MessageSquare size={24} color="#666" />
               <span style={{ position: "absolute", top: -4, right: -4, background: "#8B7BE8", color: "white", borderRadius: "50%", width: 16, height: 16, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>3</span>
             </div>
-            <div style={{ position: "relative" }}>
-              <Bell size={24} color="#666" />
-              <span style={{ position: "absolute", top: -4, right: -4, background: "#8B7BE8", color: "white", borderRadius: "50%", width: 16, height: 16, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>3</span>
+            <div style={{ position: "relative" }} ref={notificationRef}>
+              <div
+                style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
+                onClick={() => setShowNotifications(!showNotifications)}
+              >
+                <Bell size={24} color="#666" />
+                {unreadCount > 0 && (
+                  <span style={{ position: "absolute", top: -4, right: -4, background: "#8B7BE8", color: "white", borderRadius: "50%", width: 16, height: 16, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+              </div>
+
+              {/* Notification Dropdown */}
+              {showNotifications && (
+                <Card
+                  style={{
+                    position: "absolute",
+                    top: 40,
+                    right: 0,
+                    width: 380,
+                    maxHeight: 500,
+                    overflowY: "auto",
+                    padding: 24,
+                    background: "#FFF",
+                    borderRadius: 16,
+                    border: "1px solid #E1DEF6",
+                    boxShadow: "0 8px 24px rgba(0, 0, 0, 0.12)",
+                    zIndex: 1000,
+                  }}
+                >
+                  <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 20 }}>Notifications</div>
+                  {notifications.length === 0 ? (
+                    <div style={{ textAlign: "center", color: "#999", padding: "20px 0" }}>
+                      No notifications
+                    </div>
+                  ) : (
+                    notifications.map((notification: any, idx: number) => (
+                      <div key={idx} style={{ display: "flex", gap: 12, marginBottom: 16, paddingBottom: 16, borderBottom: idx !== notifications.length - 1 ? "1px solid #F0F0F0" : "none" }}>
+                        <div style={{ width: 40, height: 40, borderRadius: 8, background: "#D4CCFA", display: "flex", alignItems: "center", justifyContent: "center", color: "#FFF", fontSize: 16, fontWeight: 600, flexShrink: 0 }}>
+                          {notification.user.charAt(0).toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>by {notification.user}</div>
+                          <div style={{ fontSize: 12, color: "#666", wordWrap: "break-word" }}>{notification.action}</div>
+                          <div style={{ fontSize: 11, color: "#BBB", marginTop: 4 }}>{notification.time}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </Card>
+              )}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               {currentUser?.avatar ? (
@@ -551,25 +672,25 @@ export default function AdminHomePage() {
             <Card style={{ padding: 24, background: "#FFF", borderRadius: 16, border: "1px solid #E1DEF6" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
                 <div style={{ fontSize: 18, fontWeight: 600 }}>Contacts</div>
-                <Button variant="link" style={{ color: "#8B7BE8", padding: 0 }}>View All</Button>
+                <Button variant="link" style={{ color: "#8B7BE8", padding: 0 }} onClick={() => router.push('/admin/contact')}>View All</Button>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 16 }}>
                 {teamMembers.slice(0, 4).map((contact: any, idx: number) => (
-                  <div key={idx} style={{ textAlign: "center" }}>
-                    <div style={{ width: 60, height: 60, borderRadius: "50%", background: contact.avatarUrl ? `url(${contact.avatarUrl})` : "#D4CCFA", backgroundSize: "cover", margin: "0 auto 8px", display: "flex", alignItems: "center", justifyContent: "center", color: "#FFF", fontSize: 20, fontWeight: 600 }}>
-                      {!contact.avatarUrl && (contact.name || contact.user?.name || "?").charAt(0).toUpperCase()}
+                  <div key={contact._id || idx} style={{ textAlign: "center" }}>
+                    <div style={{ width: 60, height: 60, borderRadius: "50%", background: contact.avatar ? `url(${contact.avatar})` : "#D4CCFA", backgroundSize: "cover", margin: "0 auto 8px", display: "flex", alignItems: "center", justifyContent: "center", color: "#FFF", fontSize: 20, fontWeight: 600 }}>
+                      {!contact.avatar && (contact.name || "?").charAt(0).toUpperCase()}
                     </div>
-                    <div style={{ fontSize: 12 }}>{contact.name || contact.user?.name || "Unknown"}</div>
+                    <div style={{ fontSize: 12 }}>{contact.name}</div>
                   </div>
                 ))}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
                 {teamMembers.slice(4, 8).map((contact: any, idx: number) => (
-                  <div key={idx} style={{ textAlign: "center" }}>
-                    <div style={{ width: 60, height: 60, borderRadius: "50%", background: contact.avatarUrl ? `url(${contact.avatarUrl})` : "#D4CCFA", backgroundSize: "cover", margin: "0 auto 8px", display: "flex", alignItems: "center", justifyContent: "center", color: "#FFF", fontSize: 20, fontWeight: 600 }}>
-                      {!contact.avatarUrl && (contact.name || contact.user?.name || "?").charAt(0).toUpperCase()}
+                  <div key={contact._id || idx} style={{ textAlign: "center" }}>
+                    <div style={{ width: 60, height: 60, borderRadius: "50%", background: contact.avatar ? `url(${contact.avatar})` : "#D4CCFA", backgroundSize: "cover", margin: "0 auto 8px", display: "flex", alignItems: "center", justifyContent: "center", color: "#FFF", fontSize: 20, fontWeight: 600 }}>
+                      {!contact.avatar && (contact.name || "?").charAt(0).toUpperCase()}
                     </div>
-                    <div style={{ fontSize: 12 }}>{contact.name || contact.user?.name || "Unknown"}</div>
+                    <div style={{ fontSize: 12 }}>{contact.name}</div>
                   </div>
                 ))}
               </div>
@@ -579,16 +700,16 @@ export default function AdminHomePage() {
             <Card style={{ padding: 24, background: "#FFF", borderRadius: 16, border: "1px solid #E1DEF6" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
                 <div style={{ fontSize: 18, fontWeight: 600 }}>Messages</div>
-                <Button variant="link" style={{ color: "#8B7BE8", padding: 0 }}>View All</Button>
+                <Button variant="link" style={{ color: "#8B7BE8", padding: 0 }} onClick={() => router.push('/chat')}>View All</Button>
               </div>
               {teamMembers.slice(0, 3).map((member: any, idx: number) => (
-                <div key={idx} style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-                  <div style={{ width: 48, height: 48, borderRadius: 8, background: "#D4CCFA", display: "flex", alignItems: "center", justifyContent: "center", color: "#FFF", fontWeight: 600 }}>
-                    {(member.name || member.user?.name || "?").charAt(0).toUpperCase()}
+                <div key={member._id || idx} style={{ display: "flex", gap: 12, marginBottom: 16, cursor: "pointer" }} onClick={() => router.push(`/chat?user=${member.email}`)}>
+                  <div style={{ width: 48, height: 48, borderRadius: 8, background: member.avatar ? `url(${member.avatar})` : "#D4CCFA", backgroundSize: "cover", display: "flex", alignItems: "center", justifyContent: "center", color: "#FFF", fontWeight: 600 }}>
+                    {!member.avatar && (member.name || "?").charAt(0).toUpperCase()}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>{member.name || member.user?.name || "Team Member"}</div>
-                    <div style={{ fontSize: 12, color: "#999" }}>New message received</div>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>{member.name}</div>
+                    <div style={{ fontSize: 12, color: "#999" }}>Click to start a conversation</div>
                   </div>
                 </div>
               ))}

@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import AdminSidebar from "@/components/adminSidebar";
+import { CallModal } from "@/components/CallModal";
 import {
   Search,
   Star,
@@ -17,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { userAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { getMessagingSocket } from "@/lib/socket";
+import { getMessagingSocket, initiateCall, answerCall, rejectCall, endCall, sendCallICECandidate } from "@/lib/socket";
 
 interface Contact {
   _id: string;
@@ -29,6 +31,7 @@ interface Contact {
 }
 
 export default function ContactPage() {
+  const router = useRouter();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +39,18 @@ export default function ContactPage() {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [currentUser, setCurrentUser] = useState<any>(null);
   const { toast } = useToast();
+
+  // Call state management
+  const [isCallModalOpen, setIsCallModalOpen] = useState(false);
+  const [callType, setCallType] = useState<'audio' | 'video'>('audio');
+  const [callState, setCallState] = useState<'incoming' | 'outgoing' | 'connected'>('outgoing');
+  const [callee, setCallee] = useState<string>('');
+  const [calleeAvatar, setCalleeAvatar] = useState<string>('');
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isVideoOff, setIsVideoOff] = useState(false);
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
 
   const loadContacts = useCallback(async () => {
     try {
@@ -182,11 +197,127 @@ export default function ContactPage() {
     }
   };
 
-  const handleCallContact = (contact: Contact) => {
-    toast({
-      title: "Call Feature",
-      description: `Calling ${contact.name}...`,
-    });
+  const handleCallContact = async (contact: Contact, type: 'audio' | 'video' = 'audio') => {
+    if (!currentUser) {
+      toast({
+        title: "Error",
+        description: "Please log in to make calls",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setCallType(type);
+      setCallee(contact.name);
+      setCalleeAvatar(contact.avatarUrl || '');
+      setCallState('outgoing');
+      setIsCallModalOpen(true);
+
+      // Get media stream
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: type === 'video',
+      });
+
+      setLocalStream(stream);
+
+      // Create peer connection
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+        ],
+      });
+
+      peerConnectionRef.current = pc;
+
+      // Add local stream tracks
+      stream.getTracks().forEach((track) => {
+        pc.addTrack(track, stream);
+      });
+
+      // Handle remote stream
+      pc.ontrack = (event) => {
+        setRemoteStream(event.streams[0]);
+        setCallState('connected');
+      };
+
+      // Handle ICE candidates
+      pc.onicecandidate = (event) => {
+        if (event.candidate && currentUser?.email) {
+          sendCallICECandidate(currentUser.email, contact.email, event.candidate);
+        }
+      };
+
+      // Create offer
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      // Send call initiation via socket
+      initiateCall(currentUser.email, contact.email, offer, type);
+
+      toast({
+        title: "Calling",
+        description: `Calling ${contact.name}...`,
+      });
+    } catch (error: any) {
+      console.error('Error initiating call:', error);
+      toast({
+        title: "Call Failed",
+        description: error.message || "Failed to initiate call",
+        variant: "destructive",
+      });
+      handleEndCall();
+    }
+  };
+
+  const handleEndCall = () => {
+    // Stop all tracks
+    if (localStream) {
+      localStream.getTracks().forEach((track) => track.stop());
+      setLocalStream(null);
+    }
+
+    if (remoteStream) {
+      remoteStream.getTracks().forEach((track) => track.stop());
+      setRemoteStream(null);
+    }
+
+    // Close peer connection
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+
+    // Notify other party
+    if (currentUser?.email && callee) {
+      const calleeContact = contacts.find(c => c.name === callee);
+      if (calleeContact) {
+        endCall(currentUser.email, calleeContact.email);
+      }
+    }
+
+    setIsCallModalOpen(false);
+    setCallState('outgoing');
+  };
+
+  const handleToggleMute = () => {
+    if (localStream) {
+      localStream.getAudioTracks().forEach((track) => {
+        track.enabled = !track.enabled;
+      });
+      setIsMuted(!isMuted);
+    }
+  };
+
+  const handleToggleVideo = () => {
+    if (localStream && callType === 'video') {
+      localStream.getVideoTracks().forEach((track) => {
+        track.enabled = !track.enabled;
+      });
+      setIsVideoOff(!isVideoOff);
+    }
   };
 
   const handleMessageContact = (contact: Contact) => {
@@ -199,23 +330,8 @@ export default function ContactPage() {
       return;
     }
 
-    // Option 1: Send a quick message via WebSocket
-    // For now, just show a toast and log that the feature is ready
-    toast({
-      title: "Messaging Ready",
-      description: `Real-time messaging with ${contact.name} is now available! WebSocket connected.`,
-    });
-
-    // Example of how to send a message:
-    // sendDirectMessage({
-    //   senderEmail: currentUser.email,
-    //   receiverId: contact._id,
-    //   content: "Hello!",
-    //   messageType: 'text',
-    // });
-
-    // Option 2: Navigate to a dedicated messaging page (if you create one)
-    // window.location.href = `/messages/${contact._id}`;
+    // Navigate to chat page with user email
+    router.push(`/chat?user=${contact.email}`);
   };
 
   return (
@@ -485,6 +601,23 @@ export default function ContactPage() {
           )}
         </main>
       </div>
+
+      {/* Call Modal */}
+      <CallModal
+        isOpen={isCallModalOpen}
+        callType={callType}
+        callState={callState}
+        caller={currentUser?.name || currentUser?.email || ''}
+        callee={callee}
+        calleeAvatar={calleeAvatar}
+        localStream={localStream}
+        remoteStream={remoteStream}
+        onEnd={handleEndCall}
+        isMuted={isMuted}
+        isVideoOff={isVideoOff}
+        onToggleMute={handleToggleMute}
+        onToggleVideo={handleToggleVideo}
+      />
     </div>
   );
 }
