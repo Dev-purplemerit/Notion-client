@@ -22,6 +22,7 @@ export interface Message {
   time: string;
   avatar: string;
   isOwn: boolean;
+  createdAt?: string; // Server timestamp for proper ordering
   mediaUrl?: string;
   filename?: string;
   mimetype?: string;
@@ -202,18 +203,24 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
 
     const socket = getChatSocket();
 
-    const createMessage = (data: ChatMessage, isOwn: boolean = false): Message => ({
-        id: `${Date.now()}-${Math.random()}`,
+    const createMessage = (data: ChatMessage, isOwn: boolean = false): Message => {
+      // Use server's createdAt timestamp if available, otherwise use current time
+      const timestamp = data.createdAt ? new Date(data.createdAt) : new Date();
+
+      return {
+        id: data._id || `${Date.now()}-${Math.random()}`,
         sender: data.sender,
         content: data.text || data.filename || 'Media file',
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        time: timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        createdAt: data.createdAt || timestamp.toISOString(),
         avatar: `https://i.pravatar.cc/150?u=${data.sender}`,
         isOwn,
         mediaUrl: data.mediaUrl,
         filename: data.filename,
         mimetype: data.mimetype,
         isMedia: data.isMedia || !!data.mediaUrl,
-    });
+      };
+    };
 
     // Helper function to ensure chat exists in the list
     const ensureChatExists = (chatName: string, data: ChatMessage) => {
@@ -245,15 +252,27 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         const chatName = data.groupName || (data.sender === currentUserEmail ? data.receiver : data.sender);
         if (chatName) {
             const message = createMessage(data, data.sender === currentUserEmail);
-            
+
             // Ensure chat exists before adding message
             ensureChatExists(chatName, data);
-            
-            // Add message to state
-            setMessages(prev => ({
-              ...prev,
-              [chatName]: [...(prev[chatName] || []), message],
-            }));
+
+            // Add message to state and sort by createdAt
+            setMessages(prev => {
+              const existingMessages = prev[chatName] || [];
+              const newMessages = [...existingMessages, message];
+
+              // Sort messages by createdAt timestamp
+              newMessages.sort((a, b) => {
+                const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return timeA - timeB;
+              });
+
+              return {
+                ...prev,
+                [chatName]: deduplicateMessages(newMessages),
+              };
+            });
 
             // Increment unread count if message is not from current user
             if (data.sender !== currentUserEmail) {
@@ -275,10 +294,18 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
             // Ensure chat exists before adding message (important for new users sending media)
             ensureChatExists(chatName, data);
 
-            // Add message to state with deduplication
+            // Add message to state with sorting and deduplication
             setMessages(prev => {
               const existingMessages = prev[chatName] || [];
               const newMessages = [...existingMessages, message];
+
+              // Sort messages by createdAt timestamp
+              newMessages.sort((a, b) => {
+                const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return timeA - timeB;
+              });
+
               return {
                 ...prev,
                 [chatName]: deduplicateMessages(newMessages),
@@ -299,7 +326,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     socket.on('message:sent', (data: ChatMessage & { _id?: string; delivered?: boolean }) => {
       console.log('Message sent confirmation:', data);
       // Message was saved successfully on server
-      // Update the local message with server ID if needed
+      // Update the local message with server ID and createdAt if needed
       const chatName = data.receiver || '';
       if (chatName && data._id) {
         setMessages(prev => {
@@ -308,10 +335,22 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
           const updated = messages.map(msg => {
             // Match by content and time if no server ID yet
             if (!msg.id.startsWith('offline-') && msg.content === data.text && msg.sender === data.sender) {
-              return { ...msg, id: data._id as string };
+              return {
+                ...msg,
+                id: data._id as string,
+                createdAt: data.createdAt ? (typeof data.createdAt === 'string' ? data.createdAt : data.createdAt.toString()) : msg.createdAt
+              };
             }
             return msg;
           });
+
+          // Sort messages after update
+          updated.sort((a, b) => {
+            const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return timeA - timeB;
+          });
+
           return { ...prev, [chatName]: deduplicateMessages(updated) };
         });
       }

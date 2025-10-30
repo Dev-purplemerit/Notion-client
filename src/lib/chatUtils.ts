@@ -52,14 +52,14 @@ export function mergeMessages(
     }
   }
 
-  // Convert to array and sort by time
+  // Convert to array and sort by createdAt timestamp
   const result = Array.from(merged.values());
 
-  // Sort chronologically (parse time if needed, or use a more robust approach)
+  // Sort chronologically by createdAt timestamp
   result.sort((a, b) => {
-    // If messages have timestamps in createdAt or similar, use those
-    // For now, keep insertion order since we're already in chronological order
-    return 0;
+    const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return timeA - timeB; // Ascending order (oldest first)
   });
 
   return deduplicateMessages(result);

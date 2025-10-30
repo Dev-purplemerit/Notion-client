@@ -544,7 +544,7 @@ export const Sidebar = ({ currentView, onViewChange }: SidebarProps) => {
                   {!isCollapsed && <span className="flex-1 text-left">{item.label}</span>}
                 </Button>
                 {!isCollapsed && (
-                  <div className="flex items-center justify-center pl-2">
+                  <div className="flex items-center justify-center p-2">
                     <svg width="93" height="51" viewBox="0 0 93 51" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <g filter="url(#filter0_d_3471_15893)">
                         <rect x="6" y="4" width="80.99" height="38.9935" rx="19.4967" fill="white"/>
