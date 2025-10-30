@@ -31,7 +31,7 @@ export default function AdminHomePage() {
     // Initialize with 12 months of data
     Array.from({ length: 12 }, (_, i) => ({
       month: new Date(new Date().getFullYear(), i).toLocaleString('default', { month: 'short' }),
-      value: 15,
+      value: 10,
       rawValue: 0,
     }))
   );
@@ -111,17 +111,22 @@ export default function AdminHomePage() {
       // Process monthly activity data and normalize to percentage
       if (monthlyActivity && Array.isArray(monthlyActivity) && monthlyActivity.length > 0) {
         const maxValue = Math.max(...monthlyActivity.map((item: any) => item.total || 0), 1);
-        const processedMonthlyData = monthlyActivity.map((item: any) => ({
-          month: item.monthName || new Date(selectedYear, item.month).toLocaleString('default', { month: 'short' }),
-          value: Math.round(((item.total || 0) / maxValue) * 100),
-          rawValue: item.total || 0,
-        }));
+        const processedMonthlyData = monthlyActivity.map((item: any) => {
+          const rawValue = item.total || 0;
+          // Calculate percentage, but ensure minimum visibility for non-zero values
+          let displayValue = rawValue > 0 ? Math.max(Math.round((rawValue / maxValue) * 100), 20) : 10;
+          return {
+            month: item.monthName || new Date(selectedYear, item.month).toLocaleString('default', { month: 'short' }),
+            value: displayValue,
+            rawValue: rawValue,
+          };
+        });
         setMonthlyData(processedMonthlyData);
       } else {
         // Fallback: Create empty data for all months
         const fallbackData = Array.from({ length: 12 }, (_, i) => ({
           month: new Date(selectedYear, i).toLocaleString('default', { month: 'short' }),
-          value: 15, // Minimum visible height
+          value: 10, // Minimum visible height for empty state
           rawValue: 0,
         }));
         setMonthlyData(fallbackData);
@@ -141,7 +146,7 @@ export default function AdminHomePage() {
       // Set fallback data
       setMonthlyData(Array.from({ length: 12 }, (_, i) => ({
         month: new Date(selectedYear, i).toLocaleString('default', { month: 'short' }),
-        value: 15,
+        value: 10,
         rawValue: 0,
       })));
     } finally {
@@ -414,35 +419,43 @@ export default function AdminHomePage() {
 
               {/* Bar Chart */}
               <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 8, height: 220, paddingBottom: 10 }}>
-                {monthlyData.map((item, idx) => (
-                  <div 
-                    key={idx} 
-                    style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center", height: "100%", cursor: "pointer" }}
-                    onClick={() => setSelectedMonth(idx)}
-                  >
-                    <div
-                      style={{
-                        width: "100%",
-                        height: `${Math.max(item.value, 15)}%`,
-                        background: idx === selectedMonth ? "#4A3F8F" : "#E3DEFF",
-                        borderRadius: "12px 12px 0 0",
-                        transition: "all 0.3s ease",
-                        marginBottom: "8px"
-                      }}
-                      onMouseEnter={(e) => {
-                        if (idx !== selectedMonth) {
-                          e.currentTarget.style.opacity = "0.8";
-                          e.currentTarget.style.transform = "translateY(-4px)";
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.opacity = "1";
-                        e.currentTarget.style.transform = "translateY(0)";
-                      }}
-                    />
-                    <div style={{ fontSize: 14, color: idx === selectedMonth ? "#4A3F8F" : "#666", fontWeight: idx === selectedMonth ? 600 : 500 }}>{item.month}</div>
-                  </div>
-                ))}
+                {monthlyData.map((item, idx) => {
+                  // Calculate dynamic height - ensure proper scaling
+                  const heightPercent = item.value;
+                  const minHeight = 10; // Minimum 10% height for visibility
+                  const finalHeight = Math.max(heightPercent, minHeight);
+                  
+                  return (
+                    <div 
+                      key={idx} 
+                      style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center", height: "100%", cursor: "pointer" }}
+                      onClick={() => setSelectedMonth(idx)}
+                      title={`${item.month}: ${item.rawValue} activities`}
+                    >
+                      <div
+                        style={{
+                          width: "100%",
+                          height: `${finalHeight}%`,
+                          background: idx === selectedMonth ? "#4A3F8F" : "#E3DEFF",
+                          borderRadius: "12px 12px 0 0",
+                          transition: "all 0.3s ease",
+                          marginBottom: "8px"
+                        }}
+                        onMouseEnter={(e) => {
+                          if (idx !== selectedMonth) {
+                            e.currentTarget.style.opacity = "0.8";
+                            e.currentTarget.style.transform = "translateY(-4px)";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.opacity = "1";
+                          e.currentTarget.style.transform = "translateY(0)";
+                        }}
+                      />
+                      <div style={{ fontSize: 14, color: idx === selectedMonth ? "#4A3F8F" : "#666", fontWeight: idx === selectedMonth ? 600 : 500 }}>{item.month}</div>
+                    </div>
+                  );
+                })}
               </div>
             </Card>
 
