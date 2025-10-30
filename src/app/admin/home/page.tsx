@@ -114,7 +114,7 @@ export default function AdminHomePage() {
         const processedMonthlyData = monthlyActivity.map((item: any) => {
           const rawValue = item.total || 0;
           // Calculate percentage, but ensure minimum visibility for non-zero values
-          let displayValue = rawValue > 0 ? Math.max(Math.round((rawValue / maxValue) * 100), 20) : 10;
+          const displayValue = rawValue > 0 ? Math.max(Math.round((rawValue / maxValue) * 100), 20) : 10;
           return {
             month: item.monthName || new Date(selectedYear, item.month).toLocaleString('default', { month: 'short' }),
             value: displayValue,
