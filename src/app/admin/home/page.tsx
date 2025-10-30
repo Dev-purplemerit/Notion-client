@@ -110,19 +110,35 @@ export default function AdminHomePage() {
 
       // Process monthly activity data and normalize to percentage
       if (monthlyActivity && Array.isArray(monthlyActivity) && monthlyActivity.length > 0) {
+        console.log('📊 Raw monthly activity data:', monthlyActivity);
+        
         const maxValue = Math.max(...monthlyActivity.map((item: any) => item.total || 0), 1);
+        console.log('📈 Max value:', maxValue);
+        
         const processedMonthlyData = monthlyActivity.map((item: any) => {
           const rawValue = item.total || 0;
-          // Calculate percentage, but ensure minimum visibility for non-zero values
-          const displayValue = rawValue > 0 ? Math.max(Math.round((rawValue / maxValue) * 100), 20) : 10;
+          // Calculate percentage relative to max value
+          let displayValue;
+          if (rawValue === 0) {
+            displayValue = 10; // Minimum for empty months
+          } else if (rawValue === maxValue) {
+            displayValue = 100; // Maximum height for highest value
+          } else {
+            // Scale between 20% and 100% based on the ratio
+            displayValue = Math.max(20, Math.round((rawValue / maxValue) * 100));
+          }
+          
           return {
             month: item.monthName || new Date(selectedYear, item.month).toLocaleString('default', { month: 'short' }),
             value: displayValue,
             rawValue: rawValue,
           };
         });
+        
+        console.log('✅ Processed monthly data:', processedMonthlyData);
         setMonthlyData(processedMonthlyData);
       } else {
+        console.log('⚠️ No monthly activity data, using fallback');
         // Fallback: Create empty data for all months
         const fallbackData = Array.from({ length: 12 }, (_, i) => ({
           month: new Date(selectedYear, i).toLocaleString('default', { month: 'short' }),
@@ -420,11 +436,6 @@ export default function AdminHomePage() {
               {/* Bar Chart */}
               <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 8, height: 220, paddingBottom: 10 }}>
                 {monthlyData.map((item, idx) => {
-                  // Calculate dynamic height - ensure proper scaling
-                  const heightPercent = item.value;
-                  const minHeight = 10; // Minimum 10% height for visibility
-                  const finalHeight = Math.max(heightPercent, minHeight);
-                  
                   return (
                     <div 
                       key={idx} 
@@ -435,11 +446,12 @@ export default function AdminHomePage() {
                       <div
                         style={{
                           width: "100%",
-                          height: `${finalHeight}%`,
+                          height: `${item.value}%`,
                           background: idx === selectedMonth ? "#4A3F8F" : "#E3DEFF",
                           borderRadius: "12px 12px 0 0",
                           transition: "all 0.3s ease",
-                          marginBottom: "8px"
+                          marginBottom: "8px",
+                          minHeight: "10px"
                         }}
                         onMouseEnter={(e) => {
                           if (idx !== selectedMonth) {
