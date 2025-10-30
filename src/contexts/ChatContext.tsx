@@ -252,7 +252,18 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const handleIncomingMessage = (data: ChatMessage) => {
+        console.log('📨 handleIncomingMessage received:', {
+          sender: data.sender,
+          receiver: data.receiver,
+          groupName: data.groupName,
+          text: data.text?.substring(0, 50),
+          currentUserEmail,
+        });
+
         const chatName = data.groupName || (data.sender === currentUserEmail ? data.receiver : data.sender);
+        
+        console.log('📍 Calculated chatName:', chatName);
+        
         if (chatName) {
             const message = createMessage(data, data.sender === currentUserEmail);
 
@@ -271,6 +282,8 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
                 return timeA - timeB;
               });
 
+              console.log(`✅ Added message to chat "${chatName}", total messages:`, newMessages.length);
+
               return {
                 ...prev,
                 [chatName]: deduplicateMessages(newMessages),
@@ -284,13 +297,26 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
                     [chatName]: (prev[chatName] || 0) + 1,
                 }));
             }
+        } else {
+          console.error('❌ Could not determine chatName for message:', data);
         }
     };
 
     socket.on('message', handleIncomingMessage);
     socket.on('groupMessage', handleIncomingMessage);
     socket.on('mediaMessage', (data: ChatMessage) => {
+        console.log('📷 mediaMessage received:', {
+          sender: data.sender,
+          receiver: data.receiver,
+          groupName: data.groupName,
+          filename: data.filename,
+          currentUserEmail,
+        });
+
         const chatName = data.groupName || (data.sender === currentUserEmail ? data.receiver : data.sender);
+        
+        console.log('📍 Calculated chatName for media:', chatName);
+        
         if (chatName) {
             const message = createMessage({ ...data, isMedia: true }, data.sender === currentUserEmail);
 
@@ -309,6 +335,8 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
                 return timeA - timeB;
               });
 
+              console.log(`✅ Added media message to chat "${chatName}", total messages:`, newMessages.length);
+
               return {
                 ...prev,
                 [chatName]: deduplicateMessages(newMessages),
@@ -322,6 +350,8 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
                     [chatName]: (prev[chatName] || 0) + 1,
                 }));
             }
+        } else {
+          console.error('❌ Could not determine chatName for media message:', data);
         }
     });
 
