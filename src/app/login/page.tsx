@@ -277,6 +277,14 @@ export default function LoginPage() {
               </div>
             </div>
           </div>
+          <div className="mt-4 text-center">
+            <p className="text-sm text-gray-600">
+              Already have an account?{' '}
+              <a href="/login" className="text-purple-600 hover:underline font-medium">
+                Login here
+              </a>
+            </p>
+          </div>
         </div>
 
         {/* Right Panel - Security & System Status */}

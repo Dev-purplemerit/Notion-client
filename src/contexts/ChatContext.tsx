@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { getChatSocket, setAuthErrorCallback, resetChatSocket, type ChatMessage } from "@/lib/socket";
 import { useToast } from "@/hooks/use-toast";
 import { usersAPI, chatAPI } from "@/lib/api";
+import { deduplicateMessages, mergeMessages, setLastConnectionTime } from "@/lib/chatUtils";
 
 export interface Chat {
   name: string;
@@ -113,10 +114,16 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const addMessage = useCallback((chatName: string, message: Message) => {
-    setMessages(prev => ({
-      ...prev,
-      [chatName]: [...(prev[chatName] || []), message],
-    }));
+    setMessages(prev => {
+      const existingMessages = prev[chatName] || [];
+      const newMessages = [...existingMessages, message];
+      // Deduplicate to prevent duplicate messages
+      const deduplicated = deduplicateMessages(newMessages);
+      return {
+        ...prev,
+        [chatName]: deduplicated,
+      };
+    });
   }, []);
 
   useEffect(() => {
@@ -133,21 +140,37 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
             status: 'offline', // You might want to manage online status separately
             avatar: `https://i.pravatar.cc/150?u=${conv.partner}`,
           }));
-          setChitChatChats(conversations);
 
-          // Also, populate the messages with the last message
-          const newMessages: { [chatName: string]: Message[] } = {};
-          response.conversations.forEach((conv: any) => {
-            newMessages[conv.partner] = [{
-              id: conv.lastMessage._id,
-              sender: conv.lastMessage.sender,
-              content: conv.lastMessage.text,
-              time: new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              avatar: `https://i.pravatar.cc/150?u=${conv.lastMessage.sender}`,
-              isOwn: conv.lastMessage.sender === currentUserEmail,
-            }];
+          // Merge with existing chats instead of replacing
+          setChitChatChats(prev => {
+            const existingMap = new Map(prev.map(chat => [chat.name, chat]));
+            conversations.forEach(conv => {
+              existingMap.set(conv.name, conv);
+            });
+            return Array.from(existingMap.values());
           });
-          setMessages(newMessages);
+
+          // Merge messages instead of replacing
+          setMessages(prev => {
+            const merged = { ...prev };
+
+            response.conversations.forEach((conv: any) => {
+              const serverMessage: Message = {
+                id: conv.lastMessage._id,
+                sender: conv.lastMessage.sender,
+                content: conv.lastMessage.text,
+                time: new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                avatar: `https://i.pravatar.cc/150?u=${conv.lastMessage.sender}`,
+                isOwn: conv.lastMessage.sender === currentUserEmail,
+              };
+
+              // Merge with existing messages for this chat
+              const existingMessages = prev[conv.partner] || [];
+              merged[conv.partner] = mergeMessages(existingMessages, [serverMessage]);
+            });
+
+            return merged;
+          });
         }
       } catch (error) {
         console.error("Failed to fetch conversations", error);
@@ -248,16 +271,20 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         const chatName = data.groupName || (data.sender === currentUserEmail ? data.receiver : data.sender);
         if (chatName) {
             const message = createMessage({ ...data, isMedia: true }, data.sender === currentUserEmail);
-            
+
             // Ensure chat exists before adding message (important for new users sending media)
             ensureChatExists(chatName, data);
-            
-            // Add message to state
-            setMessages(prev => ({
-              ...prev,
-              [chatName]: [...(prev[chatName] || []), message],
-            }));
-            
+
+            // Add message to state with deduplication
+            setMessages(prev => {
+              const existingMessages = prev[chatName] || [];
+              const newMessages = [...existingMessages, message];
+              return {
+                ...prev,
+                [chatName]: deduplicateMessages(newMessages),
+              };
+            });
+
             // Increment unread count if message is not from current user
             if (data.sender !== currentUserEmail) {
                 setUnreadCounts(prev => ({
@@ -266,6 +293,38 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
                 }));
             }
         }
+    });
+
+    // Handle message confirmation from server
+    socket.on('message:sent', (data: ChatMessage & { _id?: string; delivered?: boolean }) => {
+      console.log('Message sent confirmation:', data);
+      // Message was saved successfully on server
+      // Update the local message with server ID if needed
+      const chatName = data.receiver || '';
+      if (chatName && data._id) {
+        setMessages(prev => {
+          const messages = prev[chatName] || [];
+          // Find and update the optimistic message with server data
+          const updated = messages.map(msg => {
+            // Match by content and time if no server ID yet
+            if (!msg.id.startsWith('offline-') && msg.content === data.text && msg.sender === data.sender) {
+              return { ...msg, id: data._id as string };
+            }
+            return msg;
+          });
+          return { ...prev, [chatName]: deduplicateMessages(updated) };
+        });
+      }
+    });
+
+    socket.on('groupMessage:sent', (data: ChatMessage) => {
+      console.log('Group message sent confirmation:', data);
+      // Similar handling for group messages
+    });
+
+    socket.on('mediaMessage:sent', (data: ChatMessage & { _id?: string; delivered?: boolean }) => {
+      console.log('Media message sent confirmation:', data);
+      // Handle media message confirmation
     });
 
     socket.on('error', (error: string | { message: string; code: string; requiresLogin?: boolean }) => {
@@ -282,10 +341,16 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
+    // Store last connection timestamp for offline sync
+    setLastConnectionTime(currentUserEmail);
+
     return () => {
       socket.off('message');
       socket.off('groupMessage');
       socket.off('mediaMessage');
+      socket.off('message:sent');
+      socket.off('groupMessage:sent');
+      socket.off('mediaMessage:sent');
       socket.off('error');
     };
   }, [currentUserEmail, toast]);
@@ -301,10 +366,15 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const setMessagesForChat = (chatName: string, msgs: Message[]) => {
-    setMessages(prev => ({
-      ...prev,
-      [chatName]: msgs,
-    }));
+    setMessages(prev => {
+      const existingMessages = prev[chatName] || [];
+      // Merge new messages with existing ones
+      const merged = mergeMessages(existingMessages, msgs);
+      return {
+        ...prev,
+        [chatName]: merged,
+      };
+    });
   };
 
   const markChatAsRead = (chatName: string) => {

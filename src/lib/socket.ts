@@ -105,6 +105,7 @@ export const disconnectVideoSocket = () => {
 
 // Chat message types
 export interface ChatMessage {
+  _id?: string; // MongoDB document ID when message comes from server
   sender: string;
   receiver?: string;
   groupName?: string;
@@ -114,6 +115,7 @@ export interface ChatMessage {
   mimetype?: string;
   mode: 'private' | 'group';
   isMedia?: boolean;
+  createdAt?: Date | string; // Timestamp from server
 }
 
 // Chat helpers

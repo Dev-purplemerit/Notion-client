@@ -20,6 +20,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { CallModal } from "@/components/CallModal";
 import { useChatContext, type Chat, type Message } from "@/contexts/ChatContext";
 import { usersAPI, chatAPI } from "@/lib/api";
+import { OfflineMessageQueue, isOnline } from "@/lib/chatUtils";
 
 interface User {
   _id: string;
@@ -368,6 +369,51 @@ export default function Chat() {
     }
   };
 
+  // Process offline queue
+  useEffect(() => {
+    const processOfflineQueue = async () => {
+      if (!isOnline() || !currentUser) return;
+
+      const pendingMessages = OfflineMessageQueue.getPendingMessages();
+      if (pendingMessages.length === 0) return;
+
+      console.log(`Processing ${pendingMessages.length} offline messages`);
+
+      for (const queuedMsg of pendingMessages) {
+        try {
+          OfflineMessageQueue.markAsSending(queuedMsg.id);
+
+          if (queuedMsg.type === 'group') {
+            await sendGroupMessage(
+              queuedMsg.message.sender,
+              queuedMsg.message.groupName!,
+              queuedMsg.message.text,
+            );
+          } else {
+            await sendPrivateMessage(
+              queuedMsg.message.sender,
+              queuedMsg.message.receiver!,
+              queuedMsg.message.text,
+            );
+          }
+
+          // Remove from queue on success
+          OfflineMessageQueue.dequeue(queuedMsg.id);
+        } catch (error) {
+          console.error('Failed to send offline message:', error);
+          OfflineMessageQueue.markAsFailed(queuedMsg.id);
+        }
+      }
+    };
+
+    // Process queue on mount and when coming online
+    processOfflineQueue();
+
+    // Listen for online events
+    window.addEventListener('online', processOfflineQueue);
+    return () => window.removeEventListener('online', processOfflineQueue);
+  }, [currentUser]);
+
   // Socket Effects
   useEffect(() => {
     // Fetch the actual user email
@@ -475,17 +521,44 @@ export default function Chat() {
 
     const chatKey = selectedChat.name;
     const isGroup = selectedChat.type === 'TEAM' || teamChats.some(t => t.name === selectedChat.name);
-    
-    if (isGroup) {
-      sendGroupMessage(currentUser, chatKey, message);
-    } else {
-      sendPrivateMessage(currentUser, chatKey, message);
-    }
-    
-    // Create message for immediate display
-    const newMsg = createMessage({ sender: currentUser, text: message, receiver: chatKey } as ChatMessage, true);
+
+    // Create message for immediate display (optimistic UI)
+    const newMsg = createMessage(
+      { sender: currentUser, text: message, receiver: chatKey } as ChatMessage,
+      true,
+    );
     addMessage(newMsg);
-    setMessage("");
+
+    // Check if online
+    if (isOnline()) {
+      // Send immediately
+      if (isGroup) {
+        sendGroupMessage(currentUser, chatKey, message);
+      } else {
+        sendPrivateMessage(currentUser, chatKey, message);
+      }
+    } else {
+      // Queue for later when online
+      const messageData = {
+        sender: currentUser,
+        text: message,
+        ...(isGroup ? { groupName: chatKey } : { receiver: chatKey }),
+      };
+
+      OfflineMessageQueue.enqueue(
+        chatKey,
+        messageData,
+        isGroup ? 'group' : 'private',
+      );
+
+      toast({
+        title: 'Offline',
+        description: 'Message will be sent when you\'re back online',
+        variant: 'default',
+      });
+    }
+
+    setMessage('');
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -663,21 +736,22 @@ export default function Chat() {
 
   const handleSelectChat = async (chat: Chat) => {
     setSelectedChat(chat);
-    
+
     // Use the chat name as the key (which is the email for direct chats)
     const chatKey = chat.name;
-    
+
     // Mark chat as read
     markChatAsRead(chatKey);
-    
+
     // Load messages from context first (for immediate display)
-    setMessages(contextMessages[chatKey] || []);
-    
+    // Don't replace - this will be updated by the useEffect that watches contextMessages
+    // Just let the context messages flow through
+
     // Then fetch message history from backend
     try {
       // Check if it's a team/group chat
       const isGroup = chat.type === 'TEAM' || teamChats.some(t => t.name === chat.name);
-      
+
       let response;
       if (isGroup) {
         response = await chatAPI.getGroupConversation(chat.name, 100);
@@ -685,7 +759,7 @@ export default function Chat() {
         // For direct chats, chat.name is the other user's email
         response = await chatAPI.getPrivateConversation(chat.name, 100);
       }
-      
+
       if (response.success && response.messages) {
         // Convert backend messages to frontend format
         const loadedMessages: Message[] = response.messages.map((msg: any) => ({
@@ -700,10 +774,11 @@ export default function Chat() {
           mimetype: msg.mimetype,
           isMedia: msg.isMedia || !!msg.mediaUrl,
         }));
-        
-        // Update context with loaded messages
+
+        // Update context with loaded messages (this uses merge now!)
         setMessagesForChat(chatKey, loadedMessages);
-        setMessages(loadedMessages);
+        // The useEffect below will update local messages from context
+        // No need to call setMessages directly - prevents race condition
       }
     } catch (error) {
       console.error('Failed to load message history:', error);
