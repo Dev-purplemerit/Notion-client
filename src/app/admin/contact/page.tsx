@@ -1,22 +1,19 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import AdminSidebar from "@/components/adminSidebar";
+import AdminHeader from "@/components/AdminHeader";
 import { CallModal } from "@/components/CallModal";
 import {
-  Search,
   Star,
   MoreVertical,
   Mail,
   Phone,
   MessageSquare,
-  Bell,
-  ChevronDown,
   Loader2,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { userAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { getMessagingSocket, initiateCall, answerCall, rejectCall, endCall, sendCallICECandidate } from "@/lib/socket";
@@ -29,6 +26,193 @@ interface Contact {
   role?: string;
   avatarUrl?: string;
 }
+
+interface ContactCardProps {
+  contact: Contact;
+  isFavorite: boolean;
+  onToggleFavorite: (id: string) => void;
+  onEmail: (contact: Contact) => void;
+  onCall: (contact: Contact) => void;
+  onMessage: (contact: Contact) => void;
+}
+
+const ContactCard: React.FC<ContactCardProps> = ({
+  contact,
+  isFavorite,
+  onToggleFavorite,
+  onEmail,
+  onCall,
+  onMessage,
+}) => {
+  const [imageError, setImageError] = useState(false);
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  return (
+    <div
+      style={{
+        background: "#FFF",
+        borderRadius: 16,
+        padding: "24px",
+        border: "1px solid #E1DEF6",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        position: "relative",
+      }}
+    >
+      {/* Star Icon */}
+      <button
+        onClick={() => onToggleFavorite(contact._id)}
+        style={{
+          position: "absolute",
+          top: 16,
+          left: 16,
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          padding: 0,
+        }}
+      >
+        <Star
+          size={20}
+          color={isFavorite ? "#FFB547" : "#999"}
+          fill={isFavorite ? "#FFB547" : "none"}
+        />
+      </button>
+
+      {/* More Options Icon */}
+      <button
+        style={{
+          position: "absolute",
+          top: 16,
+          right: 16,
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          padding: 0,
+        }}
+      >
+        <MoreVertical size={20} color="#999" />
+      </button>
+
+      {/* Avatar */}
+      <div
+        style={{
+          width: 80,
+          height: 80,
+          borderRadius: 16,
+          marginBottom: 16,
+          position: "relative",
+          overflow: "hidden",
+          background: "#D4CCFA",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {contact.avatarUrl && !imageError ? (
+          <Image
+            src={contact.avatarUrl}
+            alt={contact.name}
+            width={80}
+            height={80}
+            style={{
+              objectFit: "cover",
+              borderRadius: 16,
+            }}
+            onError={() => setImageError(true)}
+            unoptimized
+            placeholder="blur"
+            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkbHB0eH/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/2gAMAwEAAhEDEQA/AKrQjF2p0t2vlhJFfgHd34/bM="
+          />
+        ) : (
+          <div
+            style={{
+              fontSize: 24,
+              fontWeight: 600,
+              color: "#8B7BE8",
+            }}
+          >
+            {getInitials(contact.name)}
+          </div>
+        )}
+      </div>
+
+      {/* Contact Info */}
+      <div style={{ textAlign: "center", marginBottom: 20, width: "100%" }}>
+        <div style={{ fontSize: 16, fontWeight: 600, color: "#252525", marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {contact.name}
+        </div>
+        <div style={{ fontSize: 14, color: "#999", marginBottom: 8 }}>
+          {contact.position}
+        </div>
+        {contact.email && (
+          <div style={{ fontSize: 12, color: "#BBB", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {contact.email}
+          </div>
+        )}
+      </div>
+
+      {/* Action Buttons */}
+      <div style={{ display: "flex", gap: 12, width: "100%" }}>
+        <button
+          onClick={() => onEmail(contact)}
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "10px",
+            background: "#F5F3FF",
+            border: "none",
+            borderRadius: 8,
+            cursor: "pointer",
+          }}
+          title={`Email ${contact.name}`}
+        >
+          <Mail size={20} color="#4A3F8F" />
+        </button>
+        <button
+          onClick={() => onCall(contact)}
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "10px",
+            background: "#F5F3FF",
+            border: "none",
+            borderRadius: 8,
+            cursor: "pointer",
+          }}
+          title={`Call ${contact.name}`}
+        >
+          <Phone size={20} color="#4A3F8F" />
+        </button>
+        <button
+          onClick={() => onMessage(contact)}
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "10px",
+            background: "#F5F3FF",
+            border: "none",
+            borderRadius: 8,
+            cursor: "pointer",
+          }}
+          title={`Message ${contact.name}`}
+        >
+          <MessageSquare size={20} color="#4A3F8F" />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 export default function ContactPage() {
   const router = useRouter();
@@ -87,7 +271,6 @@ export default function ContactPage() {
       }
 
       const users = await response.json();
-      console.log('Fetched users:', users);
 
       if (!Array.isArray(users)) {
         throw new Error('Invalid response format: expected array of users');
@@ -344,69 +527,12 @@ export default function ContactPage() {
       {/* Main Content */}
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, overflow: "hidden" }}>
         {/* Header */}
-        <header
-          style={{
-            display: "flex",
-            padding: "16px 26px",
-            justifyContent: "space-between",
-            alignItems: "center",
-            borderBottom: "1px solid rgba(199, 199, 199, 0.70)",
-            background: "#FFF",
-            alignSelf: "stretch",
-          }}
-        >
-          {/* Search Bar */}
-          <div style={{ display: "flex", alignItems: "center", gap: 16, flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#8B7BE8", fontSize: 16, fontWeight: 600 }}>
-              <div style={{ width: 24, height: 24, background: "#D4CCFA", borderRadius: 8 }} />
-              Purple
-            </div>
-            <div style={{ position: "relative", width: 300 }}>
-              <Search style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#999" }} size={20} />
-              <Input
-                placeholder="Search contacts..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  paddingLeft: 40,
-                  background: "#F5F5FF",
-                  border: "none",
-                  borderRadius: 12,
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Right Section */}
-          <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Image src="https://flagcdn.com/w40/in.png" alt="India" width={24} height={16} />
-              <span style={{ fontSize: 14 }}>English (US)</span>
-              <ChevronDown size={16} />
-            </div>
-            <div style={{ position: "relative" }}>
-              <MessageSquare size={24} color="#666" />
-              <span style={{ position: "absolute", top: -4, right: -4, background: "#8B7BE8", color: "white", borderRadius: "50%", width: 16, height: 16, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>3</span>
-            </div>
-            <div style={{ position: "relative" }}>
-              <Bell size={24} color="#666" />
-              <span style={{ position: "absolute", top: -4, right: -4, background: "#8B7BE8", color: "white", borderRadius: "50%", width: 16, height: 16, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>3</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              {currentUser?.avatar ? (
-                <Image src={currentUser.avatar} alt={currentUser.name || 'User'} width={40} height={40} style={{ borderRadius: "50%", objectFit: "cover" }} />
-              ) : (
-                <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#D4CCFA", display: "flex", alignItems: "center", justifyContent: "center", color: "#8B7BE8", fontWeight: 600, fontSize: 16 }}>
-                  {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
-                </div>
-              )}
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{currentUser?.name || "User"}</div>
-                <div style={{ fontSize: 12, color: "#999" }}>{currentUser?.role === 'admin' ? 'Admin' : 'User'}</div>
-              </div>
-            </div>
-          </div>
-        </header>
+        <AdminHeader
+          currentUser={currentUser}
+          searchPlaceholder="Search contacts..."
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
 
         {/* Main Content Area */}
         <main
@@ -445,157 +571,15 @@ export default function ContactPage() {
               }}
             >
               {filteredContacts.map((contact) => (
-                <div
+                <ContactCard
                   key={contact._id}
-                  style={{
-                    background: "#FFF",
-                    borderRadius: 16,
-                    padding: "24px",
-                    border: "1px solid #E1DEF6",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    position: "relative",
-                  }}
-                >
-                  {/* Star Icon */}
-                  <button
-                    onClick={() => toggleFavorite(contact._id)}
-                    style={{
-                      position: "absolute",
-                      top: 16,
-                      left: 16,
-                      background: "transparent",
-                      border: "none",
-                      cursor: "pointer",
-                      padding: 0,
-                    }}
-                  >
-                    <Star
-                      size={20}
-                      color={favorites.has(contact._id) ? "#FFB547" : "#999"}
-                      fill={favorites.has(contact._id) ? "#FFB547" : "none"}
-                    />
-                  </button>
-
-                  {/* More Options Icon */}
-                  <button
-                    style={{
-                      position: "absolute",
-                      top: 16,
-                      right: 16,
-                      background: "transparent",
-                      border: "none",
-                      cursor: "pointer",
-                      padding: 0,
-                    }}
-                  >
-                    <MoreVertical size={20} color="#999" />
-                  </button>
-
-                  {/* Avatar */}
-                  {contact.avatarUrl ? (
-                    <div
-                      style={{
-                        width: 80,
-                        height: 80,
-                        borderRadius: 16,
-                        backgroundImage: `url(${contact.avatarUrl})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                        marginBottom: 16,
-                      }}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        width: 80,
-                        height: 80,
-                        borderRadius: 16,
-                        background: "#D4CCFA",
-                        marginBottom: 16,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: 24,
-                        fontWeight: 600,
-                        color: "#8B7BE8",
-                      }}
-                    >
-                      {getInitials(contact.name)}
-                    </div>
-                  )}
-
-                  {/* Contact Info */}
-                  <div style={{ textAlign: "center", marginBottom: 20, width: "100%" }}>
-                    <div style={{ fontSize: 16, fontWeight: 600, color: "#252525", marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {contact.name}
-                    </div>
-                    <div style={{ fontSize: 14, color: "#999", marginBottom: 8 }}>
-                      {contact.position}
-                    </div>
-                    {contact.email && (
-                      <div style={{ fontSize: 12, color: "#BBB", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {contact.email}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div style={{ display: "flex", gap: 12, width: "100%" }}>
-                    <button
-                      onClick={() => handleEmailContact(contact)}
-                      style={{
-                        flex: 1,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        padding: "10px",
-                        background: "#F5F3FF",
-                        border: "none",
-                        borderRadius: 8,
-                        cursor: "pointer",
-                      }}
-                      title={`Email ${contact.name}`}
-                    >
-                      <Mail size={20} color="#4A3F8F" />
-                    </button>
-                    <button
-                      onClick={() => handleCallContact(contact)}
-                      style={{
-                        flex: 1,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        padding: "10px",
-                        background: "#F5F3FF",
-                        border: "none",
-                        borderRadius: 8,
-                        cursor: "pointer",
-                      }}
-                      title={`Call ${contact.name}`}
-                    >
-                      <Phone size={20} color="#4A3F8F" />
-                    </button>
-                    <button
-                      onClick={() => handleMessageContact(contact)}
-                      style={{
-                        flex: 1,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        padding: "10px",
-                        background: "#F5F3FF",
-                        border: "none",
-                        borderRadius: 8,
-                        cursor: "pointer",
-                      }}
-                      title={`Message ${contact.name}`}
-                    >
-                      <MessageSquare size={20} color="#4A3F8F" />
-                    </button>
-                  </div>
-                </div>
+                  contact={contact}
+                  isFavorite={favorites.has(contact._id)}
+                  onToggleFavorite={toggleFavorite}
+                  onEmail={handleEmailContact}
+                  onCall={handleCallContact}
+                  onMessage={handleMessageContact}
+                />
               ))}
             </div>
           )}

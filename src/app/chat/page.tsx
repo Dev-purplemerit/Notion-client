@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
@@ -405,6 +405,11 @@ export default function Chat() {
   const [peerConnection, setPeerConnection] = useState<RTCPeerConnection | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const [pendingIceCandidates, setPendingIceCandidates] = useState<RTCIceCandidate[]>([]);
+  const [callTimeout, setCallTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  // ICE candidate cleanup ref to prevent memory leaks
+  const iceCandidateCleanupRef = useRef<NodeJS.Timeout | null>(null);
 
   // Helpers
   const createMessage = (data: ChatMessage, isOwn: boolean = false): Message => ({
@@ -419,6 +424,43 @@ export default function Chat() {
     mimetype: data.mimetype,
     isMedia: data.isMedia || !!data.mediaUrl,
   });
+
+  const processPendingIceCandidates = async (pc: RTCPeerConnection) => {
+    if (pendingIceCandidates.length > 0 && pc.remoteDescription) {
+      console.log(`Processing ${pendingIceCandidates.length} pending ICE candidates`);
+      const candidatesToProcess = [...pendingIceCandidates]; // Create copy to avoid race conditions
+      setPendingIceCandidates([]); // Clear immediately to prevent accumulation
+
+      for (const candidate of candidatesToProcess) {
+        try {
+          if (pc.signalingState !== 'closed' && 
+              pc.connectionState !== 'closed' &&
+              pc.connectionState !== 'failed') {
+            await pc.addIceCandidate(candidate);
+          }
+        } catch (error) {
+          console.error('Error adding pending ICE candidate:', error);
+        }
+      }
+    }
+  };
+
+  // Cleanup old ICE candidates to prevent memory leaks
+  const cleanupOldIceCandidates = useCallback(() => {
+    if (iceCandidateCleanupRef.current) {
+      clearTimeout(iceCandidateCleanupRef.current);
+    }
+    
+    iceCandidateCleanupRef.current = setTimeout(() => {
+      setPendingIceCandidates(prev => {
+        if (prev.length > 50) { // Limit to 50 candidates max
+          console.warn(`Cleaning up ${prev.length - 50} old ICE candidates to prevent memory leak`);
+          return prev.slice(-50); // Keep only the latest 50
+        }
+        return prev;
+      });
+    }, 10000); // Clean up every 10 seconds
+  }, []);
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
 
@@ -482,90 +524,182 @@ export default function Chat() {
     import('@/lib/api').then(({ usersAPI }) => {
       usersAPI.getMe().then((user: any) => {
         setCurrentUser(user.email);
-
-        const socket = getChatSocket();
-
-        // Call event listeners
-        socket.on('call:incoming', async (data: { caller: string; offer: any; callType: 'audio' | 'video' }) => {
-          setCaller(data.caller);
-          setCallee(user.email);
-          setCallType(data.callType);
-          setCallState('incoming');
-          setIsCallModalOpen(true);
-
-          // Create peer connection for incoming call
-          const pc = new RTCPeerConnection({
-            iceServers: [
-              { urls: 'stun:stun.l.google.com:19302' },
-              { urls: 'stun:stun1.l.google.com:19302' },
-            ],
-          });
-
-          pc.onicecandidate = (event) => {
-            if (event.candidate) {
-              sendCallICECandidate(user.email, data.caller, event.candidate);
-            }
-          };
-
-          pc.ontrack = (event) => {
-            setRemoteStream(event.streams[0]);
-          };
-
-          await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-          setPeerConnection(pc);
-        });
-
-        socket.on('call:answered', async (data: { callee: string; answer: any }) => {
-          if (peerConnection) {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-            setCallState('connected');
-          }
-        });
-
-        socket.on('call:iceCandidate', async (data: { sender: string; candidate: any }) => {
-          if (peerConnection && data.candidate) {
-            await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
-          }
-        });
-
-        socket.on('call:rejected', (data: { callee: string; reason: string }) => {
-          toast({
-            title: "Call Rejected",
-            description: data.reason,
-            variant: "destructive",
-          });
-          cleanupCall();
-        });
-
-        socket.on('call:ended', () => {
-          toast({
-            title: "Call Ended",
-            description: "The call has been ended.",
-          });
-          cleanupCall();
-        });
-
-        socket.on('call:error', (data: { message: string }) => {
-          toast({
-            title: "Call Error",
-            description: data.message,
-            variant: "destructive",
-          });
-          cleanupCall();
-        });
-
-        // Cleanup listeners on unmount
-        return () => {
-          socket.off('call:incoming');
-          socket.off('call:answered');
-          socket.off('call:iceCandidate');
-          socket.off('call:rejected');
-          socket.off('call:ended');
-          socket.off('call:error');
-        };
+      }).catch((error) => {
+        console.error('Failed to get user:', error);
       });
     });
-  }, [toast, peerConnection]);
+  }, []);
+
+  // Separate effect for socket setup with better cleanup to prevent memory leaks
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const socket = getChatSocket();
+    
+    // Create scoped handlers to ensure proper cleanup
+    const handleConnect = () => {
+      console.log('Chat socket connected successfully');
+    };
+
+    const handleDisconnect = () => {
+      console.log('Chat socket disconnected');
+    };
+
+    const handleConnectError = (error: any) => {
+      console.error('Chat socket connection error:', error);
+    };
+
+    const handleCallIncoming = async (data: { caller: string; offer: any; callType: 'audio' | 'video' }) => {
+      try {
+        console.log(`Incoming ${data.callType} call from ${data.caller}`);
+        setCaller(data.caller);
+        setCallee(currentUser);
+        setCallType(data.callType);
+        setCallState('incoming');
+        setIsCallModalOpen(true);
+
+        // Create peer connection for incoming call
+        const pc = new RTCPeerConnection({
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+          ],
+        });
+
+        pc.onicecandidate = (event) => {
+          if (event.candidate && pc.signalingState !== 'closed') {
+            sendCallICECandidate(currentUser, data.caller, event.candidate);
+          }
+        };
+
+        pc.ontrack = (event) => {
+          const remoteStream = event.streams[0];
+          setRemoteStream(remoteStream);
+          trackMediaStream(remoteStream); // Track for cleanup
+        };
+
+        pc.onconnectionstatechange = () => {
+          console.log('Peer connection state changed:', pc.connectionState);
+          if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+            cleanupCall();
+          }
+        };
+
+        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+        setPeerConnection(pc);
+        // Process any pending ICE candidates
+        await processPendingIceCandidates(pc);
+      } catch (error) {
+        console.error('Error handling incoming call:', error);
+        toast({
+          title: "Call Error",
+          description: "Failed to setup incoming call",
+          variant: "destructive",
+        });
+        cleanupCall();
+      }
+    };
+
+    const handleCallAnswered = async (data: { callee: string; answer: any }) => {
+      try {
+        if (peerConnection && peerConnection.signalingState !== 'closed') {
+          await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+          setCallState('connected');
+          // Process any pending ICE candidates
+          await processPendingIceCandidates(peerConnection);
+        }
+      } catch (error) {
+        console.error('Error handling call answer:', error);
+        toast({
+          title: "Call Error",
+          description: "Failed to establish connection",
+          variant: "destructive",
+        });
+        cleanupCall();
+      }
+    };
+
+    const handleIceCandidate = async (data: { sender: string; candidate: any }) => {
+      if (data.candidate) {
+        const candidate = new RTCIceCandidate(data.candidate);
+        
+        if (peerConnection && 
+            peerConnection.signalingState !== 'closed' && 
+            peerConnection.connectionState !== 'closed' &&
+            peerConnection.connectionState !== 'failed' &&
+            peerConnection.remoteDescription) {
+          try {
+            await peerConnection.addIceCandidate(candidate);
+          } catch (error) {
+            console.error('Error adding ICE candidate:', error);
+          }
+        } else {
+          // Queue the candidate but limit queue size and trigger cleanup
+          setPendingIceCandidates(prev => {
+            const newCandidates = [...prev, candidate];
+            if (newCandidates.length > 20) { // Immediate limit to prevent runaway growth
+              console.warn('ICE candidate queue getting large, keeping only latest 20');
+              return newCandidates.slice(-20);
+            }
+            return newCandidates;
+          });
+          cleanupOldIceCandidates(); // Trigger cleanup timer
+        }
+      }
+    };
+
+    const handleCallRejected = (data: { callee: string; reason: string }) => {
+      toast({
+        title: "Call Rejected",
+        description: data.reason,
+        variant: "destructive",
+      });
+      cleanupCall();
+    };
+
+    const handleCallEnded = () => {
+      toast({
+        title: "Call Ended",
+        description: "The call has been ended.",
+      });
+      cleanupCall();
+    };
+
+    const handleCallError = (data: { message: string }) => {
+      toast({
+        title: "Call Error",
+        description: data.message,
+        variant: "destructive",
+      });
+      cleanupCall();
+    };
+
+    // Add connection debugging
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+    socket.on('connect_error', handleConnectError);
+
+    // Call event listeners with scoped handlers
+    socket.on('call:incoming', handleCallIncoming);
+    socket.on('call:answered', handleCallAnswered);
+    socket.on('call:iceCandidate', handleIceCandidate);
+    socket.on('call:rejected', handleCallRejected);
+    socket.on('call:ended', handleCallEnded);
+    socket.on('call:error', handleCallError);
+
+    // Cleanup ALL listeners on unmount or currentUser change to prevent duplicates
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+      socket.off('connect_error', handleConnectError);
+      socket.off('call:incoming', handleCallIncoming);
+      socket.off('call:answered', handleCallAnswered);
+      socket.off('call:iceCandidate', handleIceCandidate);
+      socket.off('call:rejected', handleCallRejected);
+      socket.off('call:ended', handleCallEnded);
+      socket.off('call:error', handleCallError);
+    };
+  }, [currentUser, toast, peerConnection, cleanupOldIceCandidates, processPendingIceCandidates]);
 
   // Update local messages when context messages change for selected chat
   useEffect(() => {
@@ -576,6 +710,93 @@ export default function Chat() {
       scrollToBottom();
     }
   }, [contextMessages, selectedChat]);
+
+  // Cleanup on unmount and proper stream management
+  useEffect(() => {
+    return () => {
+      cleanupCall();
+      // Clean up ICE candidate cleanup timer
+      if (iceCandidateCleanupRef.current) {
+        clearTimeout(iceCandidateCleanupRef.current);
+        iceCandidateCleanupRef.current = null;
+      }
+    };
+  }, []);
+
+  // Stream cleanup ref to prevent hanging tracks
+  const streamCleanupRef = useRef<Set<MediaStream>>(new Set());
+
+  // Track all streams for proper cleanup
+  const trackMediaStream = useCallback((stream: MediaStream | null) => {
+    if (stream) {
+      streamCleanupRef.current.add(stream);
+    }
+  }, []);
+
+  // Enhanced cleanup function with better stream management
+  const cleanupCall = useCallback(() => {
+    try {
+      console.log('Starting call cleanup...');
+      
+      // Stop and clean up all tracked streams
+      streamCleanupRef.current.forEach(stream => {
+        stream.getTracks().forEach(track => {
+          if (track.readyState !== 'ended') {
+            track.stop();
+            console.log(`Stopped ${track.kind} track`);
+          }
+        });
+      });
+      streamCleanupRef.current.clear();
+
+      // Clean up current local stream
+      if (localStream) {
+        localStream.getTracks().forEach(track => {
+          if (track.readyState !== 'ended') {
+            track.stop();
+            console.log(`Stopped local ${track.kind} track`);
+          }
+        });
+      }
+
+      // Clean up peer connection
+      if (peerConnection) {
+        // Check if connection is not already closed
+        if (peerConnection.signalingState !== 'closed') {
+          // Remove event listeners to prevent memory leaks
+          peerConnection.onicecandidate = null;
+          peerConnection.ontrack = null;
+          peerConnection.onconnectionstatechange = null;
+          peerConnection.close();
+          console.log('Peer connection closed');
+        }
+      }
+
+      // Clear call timeout
+      if (callTimeout) {
+        clearTimeout(callTimeout);
+      }
+
+      // Clear ICE candidate cleanup timer
+      if (iceCandidateCleanupRef.current) {
+        clearTimeout(iceCandidateCleanupRef.current);
+        iceCandidateCleanupRef.current = null;
+      }
+    } catch (error) {
+      console.error('Error during call cleanup:', error);
+    } finally {
+      // Reset all call-related state
+      setIsCallModalOpen(false);
+      setLocalStream(null);
+      setRemoteStream(null);
+      setPeerConnection(null);
+      setIsMuted(false);
+      setIsVideoOff(false);
+      setPendingIceCandidates([]);
+      setCallTimeout(null);
+      console.log('Call cleanup completed');
+    }
+  }, [localStream, peerConnection, callTimeout]);
 
   // Handlers
   const handleSendMessage = () => {
@@ -652,7 +873,12 @@ export default function Chat() {
     reader.readAsDataURL(file);
   };
 
-  const handleVideoCall = () => {
+  const handleVideoCall = async () => {
+    if (!selectedChat) return;
+    await startCall('video');
+  };
+
+  const handleVideoCallRoom = () => {
     if (!selectedChat) return;
     const roomName = `room-${currentUser}-${selectedChat.name}`.replace(/[^a-zA-Z0-9-]/g, '');
     router.push(`/video/${roomName}`);
@@ -663,20 +889,43 @@ export default function Chat() {
     await startCall('audio');
   };
 
+  // Debug function to test socket connection
+  const testSocketConnection = () => {
+    const socket = getChatSocket();
+    console.log('Testing socket connection...');
+    console.log('Socket connected:', socket.connected);
+    console.log('Socket ID:', socket.id);
+    console.log('Current user:', currentUser);
+    console.log('Selected chat:', selectedChat?.name);
+  };
+
   const startCall = async (type: 'audio' | 'video') => {
     try {
+      console.log(`Starting ${type} call to ${selectedChat?.name}`);
       setCallType(type);
       setCallState('outgoing');
       setCaller(currentUser);
       setCallee(selectedChat!.name);
       setIsCallModalOpen(true);
 
+      // Set timeout for call
+      const timeout = setTimeout(() => {
+        toast({
+          title: "Call Timeout",
+          description: "The call could not be connected. Please try again.",
+          variant: "destructive",
+        });
+        cleanupCall();
+      }, 30000); // 30 second timeout
+      setCallTimeout(timeout);
+
       // Get user media
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
-        video: false, // Only audio for modal calls
+        video: type === 'video', // Enable video for video calls
       });
       setLocalStream(stream);
+      trackMediaStream(stream); // Track for cleanup
 
       // Create peer connection
       const pc = new RTCPeerConnection({
@@ -693,7 +942,7 @@ export default function Chat() {
 
       // Handle ICE candidates
       pc.onicecandidate = (event) => {
-        if (event.candidate) {
+        if (event.candidate && pc.signalingState !== 'closed') {
           sendCallICECandidate(currentUser, selectedChat!.name, event.candidate);
         }
       };
@@ -703,11 +952,33 @@ export default function Chat() {
         setRemoteStream(event.streams[0]);
       };
 
+      // Handle connection state changes
+      pc.onconnectionstatechange = () => {
+        console.log('Peer connection state changed:', pc.connectionState);
+        if (pc.connectionState === 'connected') {
+          // Clear timeout when connected
+          if (callTimeout) {
+            clearTimeout(callTimeout);
+            setCallTimeout(null);
+          }
+        } else if (pc.connectionState === 'failed') {
+          toast({
+            title: "Connection Failed",
+            description: "The call connection failed",
+            variant: "destructive",
+          });
+          cleanupCall();
+        } else if (pc.connectionState === 'closed') {
+          cleanupCall();
+        }
+      };
+
       setPeerConnection(pc);
 
       // Create and send offer
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
+      console.log(`Sending ${type} call offer to ${selectedChat!.name}`);
       initiateCall(currentUser, selectedChat!.name, offer, type);
     } catch (error) {
       console.error('Error starting call:', error);
@@ -728,9 +999,10 @@ export default function Chat() {
         video: callType === 'video',
       });
       setLocalStream(stream);
+      trackMediaStream(stream); // Track for cleanup
 
       // Peer connection should already exist from incoming call setup
-      if (peerConnection) {
+      if (peerConnection && peerConnection.signalingState !== 'closed') {
         stream.getTracks().forEach(track => {
           peerConnection.addTrack(track, stream);
         });
@@ -739,6 +1011,8 @@ export default function Chat() {
         await peerConnection.setLocalDescription(answer);
         answerCall(caller, currentUser, answer);
         setCallState('connected');
+      } else {
+        throw new Error('Peer connection not available or already closed');
       }
     } catch (error) {
       console.error('Error accepting call:', error);
@@ -779,21 +1053,6 @@ export default function Chat() {
         setIsVideoOff(!videoTrack.enabled);
       }
     }
-  };
-
-  const cleanupCall = () => {
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
-    }
-    if (peerConnection) {
-      peerConnection.close();
-    }
-    setIsCallModalOpen(false);
-    setLocalStream(null);
-    setRemoteStream(null);
-    setPeerConnection(null);
-    setIsMuted(false);
-    setIsVideoOff(false);
   };
 
   const handleSelectChat = async (chat: Chat) => {
@@ -997,6 +1256,16 @@ export default function Chat() {
               )}
             </div>
             <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+              {/* Debug button - remove in production */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground rounded-lg bg-white shadow-sm h-8 w-8 sm:h-10 sm:w-10"
+                onClick={testSocketConnection}
+                title="Test Socket Connection"
+              >
+                🔧
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"

@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import AdminSidebar from "@/components/adminSidebar";
-import { Search, ShoppingBag, FileText, Rocket, Users, Bell, MessageSquare, ChevronDown, Loader2 } from "lucide-react";
+import AdminHeader from "@/components/AdminHeader";
+import { ShoppingBag, FileText, Rocket, Users, Loader2, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { dashboardAPI, userAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -38,12 +37,6 @@ export default function AdminHomePage() {
     }))
   );
   const { toast } = useToast();
-
-  // Notifications state
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const notificationRef = React.useRef<HTMLDivElement>(null);
 
   const loadMonthSpecificData = useCallback(async () => {
     try {
@@ -87,22 +80,6 @@ export default function AdminHomePage() {
       console.error('Error loading month-specific data:', error);
     }
   }, [selectedMonth, selectedYear]);
-
-  const loadNotifications = useCallback(async () => {
-    try {
-      // Fetch notifications using the same recent activities API
-      const notificationsData = await dashboardAPI.getRecentActivities({ limit: 20 }).catch((err) => {
-        console.error('Error loading notifications:', err);
-        return [];
-      });
-
-      setNotifications(notificationsData || []);
-      // Count unread notifications (for now, all are unread)
-      setUnreadCount((notificationsData || []).length);
-    } catch (error: any) {
-      console.error('Error loading notifications:', error);
-    }
-  }, []);
 
   const loadDashboardData = useCallback(async () => {
     try {
@@ -198,9 +175,6 @@ export default function AdminHomePage() {
       // Load month-specific data
       await loadMonthSpecificData();
 
-      // Load notifications
-      await loadNotifications();
-
     } catch (error: any) {
       console.error('Error loading dashboard data:', error);
       toast({
@@ -228,23 +202,6 @@ export default function AdminHomePage() {
     // Reload data when month changes
     loadMonthSpecificData();
   }, [loadMonthSpecificData]);
-
-  // Handle outside click for notifications dropdown
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
-        setShowNotifications(false);
-      }
-    };
-
-    if (showNotifications) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showNotifications]);
 
   const formatTimeAgo = (dateString: string) => {
     if (!dateString) return 'Recently';
@@ -287,116 +244,10 @@ export default function AdminHomePage() {
       {/* Main Content */}
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, overflow: "hidden" }}>
         {/* Header */}
-        <header
-          style={{
-            display: "flex",
-            padding: "16px 26px",
-            justifyContent: "space-between",
-            alignItems: "center",
-            borderBottom: "1px solid rgba(199, 199, 199, 0.70)",
-            background: "#FFF",
-            alignSelf: "stretch",
-          }}
-        >
-          {/* Search Bar */}
-          <div style={{ display: "flex", alignItems: "center", gap: 16, flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#8B7BE8", fontSize: 16, fontWeight: 600 }}>
-              <div style={{ width: 24, height: 24, background: "#D4CCFA", borderRadius: 8 }} />
-              Purple
-            </div>
-            <div style={{ position: "relative", width: 300 }}>
-              <Search style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#999" }} size={20} />
-              <Input
-                placeholder="Search here..."
-                style={{
-                  paddingLeft: 40,
-                  background: "#F5F5FF",
-                  border: "none",
-                  borderRadius: 12,
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Right Section */}
-          <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Image src="https://flagcdn.com/w40/in.png" alt="India" width={24} height={16} />
-              <span style={{ fontSize: 14 }}>English (US)</span>
-              <ChevronDown size={16} />
-            </div>
-            <div style={{ position: "relative" }}>
-              <MessageSquare size={24} color="#666" />
-              <span style={{ position: "absolute", top: -4, right: -4, background: "#8B7BE8", color: "white", borderRadius: "50%", width: 16, height: 16, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>3</span>
-            </div>
-            <div style={{ position: "relative" }} ref={notificationRef}>
-              <div
-                style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
-                onClick={() => setShowNotifications(!showNotifications)}
-              >
-                <Bell size={24} color="#666" />
-                {unreadCount > 0 && (
-                  <span style={{ position: "absolute", top: -4, right: -4, background: "#8B7BE8", color: "white", borderRadius: "50%", width: 16, height: 16, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    {unreadCount > 99 ? "99+" : unreadCount}
-                  </span>
-                )}
-              </div>
-
-              {/* Notification Dropdown */}
-              {showNotifications && (
-                <Card
-                  style={{
-                    position: "absolute",
-                    top: 40,
-                    right: 0,
-                    width: 380,
-                    maxHeight: 500,
-                    overflowY: "auto",
-                    padding: 24,
-                    background: "#FFF",
-                    borderRadius: 16,
-                    border: "1px solid #E1DEF6",
-                    boxShadow: "0 8px 24px rgba(0, 0, 0, 0.12)",
-                    zIndex: 1000,
-                  }}
-                >
-                  <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 20 }}>Notifications</div>
-                  {notifications.length === 0 ? (
-                    <div style={{ textAlign: "center", color: "#999", padding: "20px 0" }}>
-                      No notifications
-                    </div>
-                  ) : (
-                    notifications.map((notification: any, idx: number) => (
-                      <div key={idx} style={{ display: "flex", gap: 12, marginBottom: 16, paddingBottom: 16, borderBottom: idx !== notifications.length - 1 ? "1px solid #F0F0F0" : "none" }}>
-                        <div style={{ width: 40, height: 40, borderRadius: 8, background: "#D4CCFA", display: "flex", alignItems: "center", justifyContent: "center", color: "#FFF", fontSize: 16, fontWeight: 600, flexShrink: 0 }}>
-                          {notification.user.charAt(0).toUpperCase()}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>by {notification.user}</div>
-                          <div style={{ fontSize: 12, color: "#666", wordWrap: "break-word" }}>{notification.action}</div>
-                          <div style={{ fontSize: 11, color: "#BBB", marginTop: 4 }}>{notification.time}</div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </Card>
-              )}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              {currentUser?.avatar ? (
-                <Image src={currentUser.avatar} alt={currentUser.name || 'User'} width={40} height={40} style={{ borderRadius: "50%", objectFit: "cover" }} />
-              ) : (
-                <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#D4CCFA", display: "flex", alignItems: "center", justifyContent: "center", color: "#8B7BE8", fontWeight: 600, fontSize: 16 }}>
-                  {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
-                </div>
-              )}
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{currentUser?.name || "User"}</div>
-                <div style={{ fontSize: 12, color: "#999" }}>{currentUser?.role === 'admin' ? 'Admin' : 'User'}</div>
-              </div>
-            </div>
-          </div>
-        </header>
+        <AdminHeader
+          currentUser={currentUser}
+          searchPlaceholder="Search here..."
+        />
 
         {/* Main Scrollable Content */}
         <main

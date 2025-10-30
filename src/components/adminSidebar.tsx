@@ -6,6 +6,7 @@ import { Home, Mail, Users, BarChart3, Settings, LogOut, BookOpen } from "lucide
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { authAPI } from "@/lib/api";
+import Image from "next/image";
 
 export default function AdminSidebar() {
   const pathname = usePathname();
@@ -41,12 +42,14 @@ export default function AdminSidebar() {
       {/* Top Section */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 32, width: "100%" }}>
         {/* Logo Section */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="40" height="40" rx="8" fill="#8B7BE8"/>
-            <path d="M12 20L16 16L20 20L28 12" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M24 12H28V16" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+        <div>
+          <Image 
+            src="/purplemerit.svg" 
+            alt="Purple Merit Logo" 
+            width={40} 
+            height={40}
+            priority
+           />
           <div style={{ textAlign: "center", lineHeight: 1.2 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: "#4A3F8F" }}>Purple</div>
             <div style={{ fontSize: 14, fontWeight: 400, color: "#AEA1E4" }}>Merit</div>

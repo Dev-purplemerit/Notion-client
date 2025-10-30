@@ -108,11 +108,12 @@ export const Sidebar = ({ currentView, onViewChange }: SidebarProps) => {
         border: '2px solid #F1F1F1',
         background: 'linear-gradient(174deg, #C9C4EE 0%, #EFEDFA 56.33%, #E1DEF6 100%)',
         width: isCollapsed ? '80px' : 'auto',
+        maxWidth: isCollapsed ? '80px' : '332px',
       }}
     >
       {/* Logo and Collapse Button */}
-      <div className="w-full" style={{ paddingLeft: '24px', paddingRight: isCollapsed ? '24px' : '0' }}>
-        <div className="h-8 flex items-center justify-between w-full">
+      <div className="w-full relative" style={{ paddingLeft: '24px', paddingRight: isCollapsed ? '24px' : '0' }}>
+        <div className="h-8 flex items-center w-full">
           {!isCollapsed && (
             <div className="flex items-center gap-2">
               <Image 
@@ -130,8 +131,8 @@ export const Sidebar = ({ currentView, onViewChange }: SidebarProps) => {
           )}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className={`hover:opacity-70 transition-opacity ${isCollapsed ? 'mx-auto' : ''}`}
-            style={isCollapsed ? {} : { marginLeft: 'auto', marginRight: '0', paddingRight: '12px' }}
+            className={`hover:opacity-70 transition-opacity ${isCollapsed ? 'mx-auto' : 'absolute'}`}
+            style={isCollapsed ? {} : { right: '0', top: '50%', transform: 'translateY(-50%)' }}
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {isCollapsed ? (

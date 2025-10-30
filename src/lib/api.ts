@@ -1046,6 +1046,57 @@ export const collectionsAPI = {
     }),
 };
 
+// Kanban API
+export const kanbanAPI = {
+  // Get board by project (or default board if no projectId)
+  getBoard: (projectId?: string) => {
+    const query = projectId ? `?projectId=${projectId}` : '';
+    return apiRequest(`/kanban/boards${query}`);
+  },
+
+  // Create or update board
+  createOrUpdateBoard: (data: {
+    projectId?: string;
+    name?: string;
+    columns?: Array<{
+      title: string;
+      status: string[];
+      color: string;
+      order: number;
+    }>;
+    isDefault?: boolean;
+  }) =>
+    apiRequest('/kanban/boards', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  // Update existing board
+  updateBoard: (boardId: string, data: {
+    name?: string;
+    columns?: Array<{
+      title: string;
+      status: string[];
+      color: string;
+      order: number;
+    }>;
+    isDefault?: boolean;
+  }) =>
+    apiRequest(`/kanban/boards/${boardId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  // Get all user boards
+  getAllBoards: () => apiRequest('/kanban/boards/all'),
+
+  // Delete board
+  deleteBoard: (boardId: string) =>
+    apiRequest(`/kanban/boards/${boardId}`, {
+      method: 'DELETE',
+    }),
+};
+
 export default {
   auth: authAPI,
   teams: teamsAPI,
@@ -1064,4 +1115,5 @@ export default {
   dashboard: dashboardAPI,
   gmail: gmailAPI,
   collections: collectionsAPI,
+  kanban: kanbanAPI,
 };

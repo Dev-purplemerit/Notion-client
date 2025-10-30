@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { usersAPI, userAPI } from "@/lib/api";
 import AdminSidebar from "@/components/adminSidebar";
+import AdminHeader from "@/components/AdminHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,8 +15,7 @@ import { EditProfileModal } from "@/components/EditProfileModal";
 import { ChangePasswordModal } from "@/components/ChangePasswordModal";
 import { ChangeEmailModal } from "@/components/ChangeEmailModal";
 import { useToast } from "@/hooks/use-toast";
-import { Search, ChevronDown, Bell, MessageSquare, Loader2 } from "lucide-react";
-import Image from "next/image";
+import { Loader2 } from "lucide-react";
 
 // Custom SVG Switch Component
 const SvgSwitch = ({ checked, onCheckedChange }: { checked?: boolean; onCheckedChange?: (checked: boolean) => void }) => {
@@ -124,62 +124,10 @@ export default function AdminSettingsPage() {
 
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, overflow: "hidden" }}>
         {/* Header */}
-        <header
-          style={{
-            display: "flex",
-            padding: "16px 26px",
-            justifyContent: "space-between",
-            alignItems: "center",
-            borderBottom: "1px solid rgba(199, 199, 199, 0.70)",
-            background: "#FFF",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 16, flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#8B7BE8", fontSize: 16, fontWeight: 600 }}>
-              <div style={{ width: 24, height: 24, background: "#D4CCFA", borderRadius: 8 }} />
-              Purple
-            </div>
-            <div style={{ position: "relative", width: 300 }}>
-              <Search style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#999" }} size={20} />
-              <Input
-                placeholder="Search settings..."
-                style={{
-                  paddingLeft: 40,
-                  background: "#F5F5FF",
-                  border: "none",
-                  borderRadius: 12,
-                }}
-              />
-            </div>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Image src="https://flagcdn.com/w40/in.png" alt="India" width={24} height={16} />
-              <span style={{ fontSize: 14 }}>English (US)</span>
-              <ChevronDown size={16} />
-            </div>
-            <div style={{ position: "relative" }}>
-              <MessageSquare size={24} color="#666" />
-            </div>
-            <div style={{ position: "relative" }}>
-              <Bell size={24} color="#666" />
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              {user?.avatar ? (
-                <Image src={user.avatar} alt={user.name || 'User'} width={40} height={40} style={{ borderRadius: "50%", objectFit: "cover" }} />
-              ) : (
-                <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#D4CCFA", display: "flex", alignItems: "center", justifyContent: "center", color: "#8B7BE8", fontWeight: 600, fontSize: 16 }}>
-                  {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
-                </div>
-              )}
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{user?.name || "User"}</div>
-                <div style={{ fontSize: 12, color: "#999" }}>{user?.role === 'admin' ? 'Admin' : 'User'}</div>
-              </div>
-            </div>
-          </div>
-        </header>
+        <AdminHeader
+          currentUser={user}
+          searchPlaceholder="Search settings..."
+        />
 
         {/* Main Content */}
         <main style={{ flex: 1, overflow: "auto", padding: "32px 40px" }}>

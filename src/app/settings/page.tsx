@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { usersAPI, userAPI } from "@/lib/api";
 import { Sidebar } from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,8 @@ import {
   Shield,
   Accessibility as AccessibilityIcon,
   Bell,
-  Bot
+  Bot,
+  Settings,
 } from "lucide-react";
 
 // Custom SVG Switch Component
@@ -56,6 +58,7 @@ const SvgSwitch = ({ checked, onCheckedChange }: { checked?: boolean; onCheckedC
 };
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [currentView, setCurrentView] = useState("settings");
   const [activeSection, setActiveSection] = useState("profile");
   const [user, setUser] = useState<any>(null);
@@ -146,11 +149,21 @@ export default function SettingsPage() {
     { id: "security", label: "Security", icon: Shield },
     { id: "accessibility", label: "Accessibility", icon: AccessibilityIcon },
     { id: "notification", label: "Notification", icon: Bell },
-    { id: "ai", label: "AI Settings", icon: Bot }
+    { id: "ai", label: "AI Settings", icon: Bot },
+    // Admin panel button - only show for admin users
+    ...(user?.role === 'admin' ? [{ id: "admin", label: "Admin Panel", icon: Settings }] : [])
   ];
 
   const handleViewChange = (view: string) => {
     setCurrentView(view);
+  };
+
+  const handleAdminPanelClick = () => {
+    toast({
+      title: "Redirecting to Admin Panel",
+      description: "Taking you to the admin dashboard...",
+    });
+    router.push('/admin/home');
   };
 
   const renderContent = () => {
@@ -170,7 +183,21 @@ export default function SettingsPage() {
                   </Avatar>
                   <div>
                     <h2 className="text-xl font-semibold text-foreground">{user?.name || "-"}</h2>
-                    <p className="text-sm text-muted-foreground">{user?.role || "-"}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-sm text-muted-foreground">{user?.role || "-"}</p>
+                      {user?.role === 'admin' && (
+                        <div className="flex items-center gap-1">
+                          <span className="w-1 h-1 bg-muted-foreground rounded-full"></span>
+                          <button
+                            onClick={handleAdminPanelClick}
+                            className="text-xs bg-gradient-to-r from-[#8B7BE8] to-[#9B8CE8] text-white px-2 py-1 rounded-full hover:from-[#7A6BD7] hover:to-[#8A7BD7] transition-all duration-200 flex items-center gap-1"
+                          >
+                            <Settings size={10} />
+                            Go to Admin Panel
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground">{user?.location || "-"}</p>
                   </div>
                 </div>
@@ -639,11 +666,22 @@ export default function SettingsPage() {
                     activeSection === item.id
                       ? "bg-[#E8E3FF] text-[#7C3AED] hover:bg-[#E8E3FF]"
                       : "text-foreground hover:bg-muted"
-                  }`}
-                  onClick={() => setActiveSection(item.id)}
+                  } ${item.id === "admin" ? "border border-[#8B7BE8] bg-gradient-to-r from-[#8B7BE8] to-[#9B8CE8] text-white hover:from-[#7A6BD7] hover:to-[#8A7BD7]" : ""}`}
+                  onClick={() => {
+                    if (item.id === "admin") {
+                      handleAdminPanelClick();
+                    } else {
+                      setActiveSection(item.id);
+                    }
+                  }}
                 >
                   <item.icon size={18} className="mr-3" />
                   <span>{item.label}</span>
+                  {item.id === "admin" && (
+                    <span className="ml-auto text-xs bg-white/20 px-2 py-1 rounded-full">
+                      Admin
+                    </span>
+                  )}
                 </Button>
               ))}
             </div>

@@ -1,21 +1,17 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import Image from "next/image";
 import AdminSidebar from "@/components/adminSidebar";
+import AdminHeader from "@/components/AdminHeader";
 import {
-  Search,
   User,
   Crown,
-  MessageSquare,
-  Bell,
-  ChevronDown,
   Loader2,
   AlertCircle,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { userAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import Image from "next/image";
 
 interface UserData {
   _id: string;
@@ -238,69 +234,12 @@ export default function AdminUsersPage() {
       {/* Main Content */}
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, overflow: "hidden" }}>
         {/* Header */}
-        <header
-          style={{
-            display: "flex",
-            padding: "16px 26px",
-            justifyContent: "space-between",
-            alignItems: "center",
-            borderBottom: "1px solid rgba(199, 199, 199, 0.70)",
-            background: "#FFF",
-            alignSelf: "stretch",
-          }}
-        >
-          {/* Search Bar */}
-          <div style={{ display: "flex", alignItems: "center", gap: 16, flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#8B7BE8", fontSize: 16, fontWeight: 600 }}>
-              <div style={{ width: 24, height: 24, background: "#D4CCFA", borderRadius: 8 }} />
-              Purple
-            </div>
-            <div style={{ position: "relative", width: 300 }}>
-              <Search style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#999" }} size={20} />
-              <Input
-                placeholder="Search users..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  paddingLeft: 40,
-                  background: "#F5F5FF",
-                  border: "none",
-                  borderRadius: 12,
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Right Section */}
-          <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Image src="https://flagcdn.com/w40/in.png" alt="India" width={24} height={16} />
-              <span style={{ fontSize: 14 }}>English (US)</span>
-              <ChevronDown size={16} />
-            </div>
-            <div style={{ position: "relative" }}>
-              <MessageSquare size={24} color="#666" />
-              <span style={{ position: "absolute", top: -4, right: -4, background: "#8B7BE8", color: "white", borderRadius: "50%", width: 16, height: 16, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>3</span>
-            </div>
-            <div style={{ position: "relative" }}>
-              <Bell size={24} color="#666" />
-              <span style={{ position: "absolute", top: -4, right: -4, background: "#8B7BE8", color: "white", borderRadius: "50%", width: 16, height: 16, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>3</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              {currentUser?.avatar ? (
-                <Image src={currentUser.avatar} alt={currentUser.name || 'User'} width={40} height={40} style={{ borderRadius: "50%", objectFit: "cover" }} />
-              ) : (
-                <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#D4CCFA", display: "flex", alignItems: "center", justifyContent: "center", color: "#8B7BE8", fontWeight: 600, fontSize: 16 }}>
-                  {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : "A"}
-                </div>
-              )}
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{currentUser?.name || 'Admin'}</div>
-                <div style={{ fontSize: 12, color: "#999" }}>{currentUser?.role === 'admin' ? 'Admin' : 'User'}</div>
-              </div>
-            </div>
-          </div>
-        </header>
+        <AdminHeader
+          currentUser={currentUser}
+          searchPlaceholder="Search users..."
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
 
         {/* Main Content Area */}
         <main

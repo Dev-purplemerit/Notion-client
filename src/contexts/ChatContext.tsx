@@ -59,6 +59,34 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
   const [unreadCounts, setUnreadCounts] = useState<{ [chatName: string]: number }>({});
   const { toast } = useToast();
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  // Cache for user avatars to avoid repeated API calls
+  const [userAvatarCache, setUserAvatarCache] = useState<{ [email: string]: string }>({});
+
+  // Helper function to get user avatar from cache or fetch from API
+  const getUserAvatar = useCallback(async (email: string): Promise<string> => {
+    // Check cache first
+    if (userAvatarCache[email]) {
+      return userAvatarCache[email];
+    }
+
+    // Fetch from API
+    try {
+      const users = await usersAPI.search(email);
+      if (users && users.length > 0) {
+        const user = users.find((u: any) => u.email === email);
+        if (user && user.avatar) {
+          // Update cache
+          setUserAvatarCache(prev => ({ ...prev, [email]: user.avatar }));
+          return user.avatar;
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to fetch avatar for ${email}`, error);
+    }
+
+    // Return empty string if not found (will use fallback initials)
+    return '';
+  }, [userAvatarCache]);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -134,13 +162,19 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       try {
         const response = await chatAPI.getConversations();
         if (response.success) {
-          const conversations = response.conversations.map((conv: any) => ({
-            name: conv.partner,
-            role: 'User',
-            time: new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            status: 'offline', // You might want to manage online status separately
-            avatar: `https://i.pravatar.cc/150?u=${conv.partner}`,
-          }));
+          // Fetch avatars for all conversation partners
+          const conversationPromises = response.conversations.map(async (conv: any) => {
+            const avatar = await getUserAvatar(conv.partner);
+            return {
+              name: conv.partner,
+              role: 'User',
+              time: new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              status: 'offline', // You might want to manage online status separately
+              avatar: avatar || '',
+            };
+          });
+
+          const conversations = await Promise.all(conversationPromises);
 
           // Merge with existing chats instead of replacing
           setChitChatChats(prev => {
@@ -155,13 +189,14 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
           setMessages(prev => {
             const merged = { ...prev };
 
-            response.conversations.forEach((conv: any) => {
+            response.conversations.forEach(async (conv: any) => {
+              const senderAvatar = await getUserAvatar(conv.lastMessage.sender);
               const serverMessage: Message = {
                 id: conv.lastMessage._id,
                 sender: conv.lastMessage.sender,
                 content: conv.lastMessage.text,
                 time: new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                avatar: `https://i.pravatar.cc/150?u=${conv.lastMessage.sender}`,
+                avatar: senderAvatar || '',
                 isOwn: conv.lastMessage.sender === currentUserEmail,
               };
 
@@ -216,7 +251,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         content: data.text || data.filename || 'Media file',
         time: timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         createdAt: createdAtStr,
-        avatar: `https://i.pravatar.cc/150?u=${data.sender}`,
+        avatar: '', // Will be populated asynchronously
         isOwn,
         mediaUrl: data.mediaUrl,
         filename: data.filename,
@@ -226,11 +261,12 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     };
 
     // Helper function to ensure chat exists in the list
-    const ensureChatExists = (chatName: string, data: ChatMessage) => {
+    const ensureChatExists = async (chatName: string, data: ChatMessage) => {
       console.log(`ensureChatExists called - chatName: ${chatName}, sender: ${data.sender}, currentUser: ${currentUserEmail}, mode: ${data.mode}`);
       
       // Only create chat for incoming messages (not from current user)
       if (data.mode === 'private' && data.sender !== currentUserEmail) {
+        const avatar = await getUserAvatar(chatName);
         setChitChatChats(prev => {
           const chatExists = prev.some(chat => chat.name === chatName);
           console.log(`Chat exists check: ${chatExists} for ${chatName}`);
@@ -241,7 +277,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
               role: 'New Chat',
               time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
               status: 'online',
-              avatar: `https://i.pravatar.cc/150?u=${chatName}`,
+              avatar: avatar || '',
             }];
           }
           return prev;
@@ -251,14 +287,18 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    const handleIncomingMessage = (data: ChatMessage) => {
+    const handleIncomingMessage = async (data: ChatMessage) => {
         const chatName = data.groupName || (data.sender === currentUserEmail ? data.receiver : data.sender);
         
         if (chatName) {
             const message = createMessage(data, data.sender === currentUserEmail);
 
+            // Fetch avatar for the sender
+            const senderAvatar = await getUserAvatar(data.sender);
+            message.avatar = senderAvatar || '';
+
             // Ensure chat exists before adding message
-            ensureChatExists(chatName, data);
+            await ensureChatExists(chatName, data);
 
             // Add message to state and sort by createdAt
             setMessages(prev => {
@@ -290,14 +330,18 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
 
     socket.on('message', handleIncomingMessage);
     socket.on('groupMessage', handleIncomingMessage);
-    socket.on('mediaMessage', (data: ChatMessage) => {
+    socket.on('mediaMessage', async (data: ChatMessage) => {
         const chatName = data.groupName || (data.sender === currentUserEmail ? data.receiver : data.sender);
         
         if (chatName) {
             const message = createMessage({ ...data, isMedia: true }, data.sender === currentUserEmail);
 
+            // Fetch avatar for the sender
+            const senderAvatar = await getUserAvatar(data.sender);
+            message.avatar = senderAvatar || '';
+
             // Ensure chat exists before adding message (important for new users sending media)
-            ensureChatExists(chatName, data);
+            await ensureChatExists(chatName, data);
 
             // Add message to state with sorting and deduplication
             setMessages(prev => {
