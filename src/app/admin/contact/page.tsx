@@ -41,7 +41,22 @@ export default function ContactPage() {
     try {
       setLoading(true);
 
-      // First try to get all users from the admin endpoint
+      // Get current user's profile first to check role
+      const currentUserProfile = await userAPI.getProfile();
+      
+      if (currentUserProfile.role !== 'admin') {
+        toast({
+          title: "Access Denied",
+          description: "You need admin privileges to view contacts",
+          variant: "destructive",
+        });
+        setContacts([]);
+        setFilteredContacts([]);
+        setLoading(false);
+        return;
+      }
+
+      // Try to get all users from the admin endpoint
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
       const response = await fetch(`${API_URL}/users/admin/all`, {
         credentials: 'include',
@@ -51,10 +66,17 @@ export default function ContactPage() {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('API Error:', response.status, errorText);
+        throw new Error(`Failed to fetch users: ${response.status} ${response.statusText}`);
       }
 
       const users = await response.json();
+      console.log('Fetched users:', users);
+
+      if (!Array.isArray(users)) {
+        throw new Error('Invalid response format: expected array of users');
+      }
 
       // Map users to contacts
       const contactList: Contact[] = users.map((user: any) => ({
@@ -79,7 +101,7 @@ export default function ContactPage() {
       console.error('Error loading contacts:', error);
       toast({
         title: "Error Loading Contacts",
-        description: error.response?.data?.message || error.message || "Failed to load contacts. Please check your connection and try again.",
+        description: error.message || "Failed to load contacts. Please check your connection and try again.",
         variant: "destructive",
       });
       setContacts([]);

@@ -110,10 +110,7 @@ export default function AdminHomePage() {
 
       // Process monthly activity data and normalize to percentage
       if (monthlyActivity && Array.isArray(monthlyActivity) && monthlyActivity.length > 0) {
-        console.log('📊 Raw monthly activity data:', monthlyActivity);
-        
         const maxValue = Math.max(...monthlyActivity.map((item: any) => item.total || 0), 1);
-        console.log('📈 Max value:', maxValue);
         
         const processedMonthlyData = monthlyActivity.map((item: any) => {
           const rawValue = item.total || 0;
@@ -135,10 +132,8 @@ export default function AdminHomePage() {
           };
         });
         
-        console.log('✅ Processed monthly data:', processedMonthlyData);
         setMonthlyData(processedMonthlyData);
       } else {
-        console.log('⚠️ No monthly activity data, using fallback');
         // Fallback: Create empty data for all months
         const fallbackData = Array.from({ length: 12 }, (_, i) => ({
           month: new Date(selectedYear, i).toLocaleString('default', { month: 'short' }),
@@ -360,7 +355,7 @@ export default function AdminHomePage() {
                   </div>
                 </div>
                 
-                {/* Graph below */}
+                {/* Graph below - Dynamic based on monthly data */}
                 <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <svg width="100%" height="140" viewBox="0 0 520 140" preserveAspectRatio="none" style={{ display: "block" }}>
                     <defs>
@@ -371,24 +366,66 @@ export default function AdminHomePage() {
                       </linearGradient>
                     </defs>
                     
-                    {/* Filled area under the curve */}
-                    <path 
-                      d="M 0 70 Q 40 50, 80 60 T 160 45 Q 200 40, 240 55 T 320 40 Q 360 35, 400 60 T 480 45 Q 500 40, 520 25 L 520 140 L 0 140 Z" 
-                      fill="url(#areaGradient)"
-                    />
-                    
-                    {/* Wave line */}
-                    <path 
-                      d="M 0 70 Q 40 50, 80 60 T 160 45 Q 200 40, 240 55 T 320 40 Q 360 35, 400 60 T 480 45 Q 500 40, 520 25" 
-                      stroke="#7B68EE" 
-                      strokeWidth="3" 
-                      fill="none" 
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    
-                    {/* Highlight dot */}
-                    <circle cx="240" cy="55" r="6" fill="#7B68EE" stroke="#FFF" strokeWidth="2" />
+                    {(() => {
+                      // Generate dynamic path based on monthly data
+                      const maxValue = Math.max(...monthlyData.map(d => d.rawValue), 1);
+                      const width = 520;
+                      const height = 140;
+                      const segmentWidth = width / (monthlyData.length - 1);
+                      
+                      // Calculate Y positions (inverted because SVG Y increases downward)
+                      const points = monthlyData.map((item, idx) => {
+                        const x = idx * segmentWidth;
+                        const normalizedValue = item.rawValue / maxValue;
+                        const y = height - (normalizedValue * (height * 0.7)) - 20; // Scale to 70% of height, offset from bottom
+                        return { x, y };
+                      });
+                      
+                      // Create smooth curve path using quadratic bezier curves
+                      let pathD = `M ${points[0].x} ${points[0].y}`;
+                      for (let i = 0; i < points.length - 1; i++) {
+                        const currentPoint = points[i];
+                        const nextPoint = points[i + 1];
+                        const controlX = (currentPoint.x + nextPoint.x) / 2;
+                        pathD += ` Q ${controlX} ${currentPoint.y}, ${nextPoint.x} ${nextPoint.y}`;
+                      }
+                      
+                      // Create filled area path
+                      const filledPathD = pathD + ` L ${points[points.length - 1].x} ${height} L 0 ${height} Z`;
+                      
+                      // Find the highest point for the highlight dot
+                      const highestPointIndex = monthlyData.reduce((maxIdx, item, idx, arr) => 
+                        item.rawValue > arr[maxIdx].rawValue ? idx : maxIdx, 0
+                      );
+                      const highlightPoint = points[highestPointIndex];
+                      
+                      return (
+                        <>
+                          {/* Filled area under the curve */}
+                          <path d={filledPathD} fill="url(#areaGradient)" />
+                          
+                          {/* Wave line */}
+                          <path 
+                            d={pathD}
+                            stroke="#7B68EE" 
+                            strokeWidth="3" 
+                            fill="none" 
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          
+                          {/* Highlight dot at highest point */}
+                          <circle 
+                            cx={highlightPoint.x} 
+                            cy={highlightPoint.y} 
+                            r="6" 
+                            fill="#7B68EE" 
+                            stroke="#FFF" 
+                            strokeWidth="2" 
+                          />
+                        </>
+                      );
+                    })()}
                   </svg>
                 </div>
               </Card>
