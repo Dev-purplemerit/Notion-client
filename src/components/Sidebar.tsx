@@ -131,7 +131,7 @@ export const Sidebar = ({ currentView, onViewChange }: SidebarProps) => {
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
             className={`hover:opacity-70 transition-opacity ${isCollapsed ? 'mx-auto' : ''}`}
-            style={isCollapsed ? {} : { marginLeft: 'auto', marginRight: '-12px' }}
+            style={isCollapsed ? {} : { marginLeft: 'auto' }}
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {isCollapsed ? (
@@ -513,7 +513,7 @@ export const Sidebar = ({ currentView, onViewChange }: SidebarProps) => {
             item.id === "settings" ? (
               <div
                 key={item.id}
-                className={`flex items-center justify-between text-gray-800 ${pathname === '/settings' ? '' : 'hover:bg-black/5 rounded-[20px]'}`}
+                className={`flex items-center text-gray-800 ${pathname === '/settings' ? '' : 'hover:bg-black/5 rounded-[20px]'}`}
                 style={
                   pathname === '/settings'
                     ? {
@@ -523,28 +523,32 @@ export const Sidebar = ({ currentView, onViewChange }: SidebarProps) => {
                         borderRadius: '32px',
                         background: '#AEA1E4',
                         boxShadow: 'inset 0 2px 3px 0 rgba(110, 76, 181, 0.38)',
-                        justifyContent: isCollapsed ? 'center' : 'space-between',
+                        justifyContent: isCollapsed ? 'center' : 'flex-start',
                       }
                     : {
                         width: isCollapsed ? '48px' : '292px',
+                        height: '48px',
                         padding: '10px',
                         borderRadius: '20px',
-                        justifyContent: isCollapsed ? 'center' : 'space-between',
+                        justifyContent: isCollapsed ? 'center' : 'flex-start',
                       }
                 }
               >
                 <Button
                   variant="ghost"
-                  className="flex-1 justify-start h-full hover:bg-transparent p-0"
-                  style={{ justifyContent: isCollapsed ? 'center' : 'flex-start' }}
+                  className="hover:bg-transparent p-0 h-full"
+                  style={{ 
+                    justifyContent: isCollapsed ? 'center' : 'flex-start',
+                    flex: 'none'
+                  }}
                   onClick={() => handleNavigation(item.id)}
                   title={isCollapsed ? item.label : undefined}
                 >
                   <item.icon size={18} className={isCollapsed ? '' : 'mr-3'} />
-                  {!isCollapsed && <span className="flex-1 text-left">{item.label}</span>}
+                  {!isCollapsed && <span className="text-left">{item.label}</span>}
                 </Button>
                 {!isCollapsed && (
-                  <div className="flex justify-end p-2">
+                  <div className="ml-auto flex items-center">
                     <svg width="93" height="51" viewBox="0 0 93 51" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <g filter="url(#filter0_d_3471_15893)">
                         <rect x="6" y="4" width="80.99" height="38.9935" rx="19.4967" fill="white"/>
