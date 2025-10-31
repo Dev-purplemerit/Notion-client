@@ -5,25 +5,53 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
 
-// Auth helpers (cookies are handled automatically by browser)
+// Token storage keys
+const ACCESS_TOKEN_KEY = 'accessToken';
+const REFRESH_TOKEN_KEY = 'refreshToken';
+
+// Token management
+export const getAccessToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(ACCESS_TOKEN_KEY);
+};
+
+export const getRefreshToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
+};
+
+export const setTokens = (accessToken: string, refreshToken: string): void => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+};
+
+export const clearTokens = (): void => {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+};
+
+// Auth helpers
 export const isAuthenticated = (): boolean => {
-  // This will be determined by actual API calls
-  // Browser handles cookies automatically
-  return true;
+  return !!getAccessToken();
 };
 
-// Get auth token (not used since we use cookies, but needed for compatibility)
+// Get auth token for backward compatibility
 const getAuthToken = (): string => {
-  // Authentication is cookie-based, so we don't need a token
-  // This function exists for backward compatibility with upload functions
-  return '';
+  return getAccessToken() || '';
 };
 
-// Try to refresh access token using refresh token cookie
+// Try to refresh access token using refresh token
 async function tryRefreshToken(): Promise<boolean> {
   // If already refreshing, wait for that refresh to complete
   if (isRefreshing && refreshPromise) {
     return refreshPromise;
+  }
+
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    return false;
   }
 
   isRefreshing = true;
@@ -31,9 +59,24 @@ async function tryRefreshToken(): Promise<boolean> {
     try {
       const response = await fetch(`${API_URL}/auth/refresh`, {
         method: 'POST',
-        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken }),
       });
-      return response.ok;
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.accessToken) {
+          // Update access token in localStorage
+          const currentRefreshToken = getRefreshToken();
+          if (currentRefreshToken) {
+            setTokens(data.accessToken, currentRefreshToken);
+          }
+          return true;
+        }
+      }
+      return false;
     } catch (error) {
       return false;
     } finally {
@@ -45,17 +88,23 @@ async function tryRefreshToken(): Promise<boolean> {
   return refreshPromise;
 }
 
-// API request helper with automatic cookie handling
+// API request helper with automatic token handling
 async function apiRequest(endpoint: string, options: RequestInit = {}) {
   const headers: { [key: string]: string } = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
 
+  // Add Authorization header if token exists
+  const accessToken = getAccessToken();
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     headers,
-    credentials: 'include', // CRITICAL: Include cookies in requests
+    credentials: 'include', // Send cookies with requests
   });
 
   if (!response.ok) {
@@ -65,11 +114,16 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
       if (typeof window !== 'undefined' && window.location.pathname !== '/') {
         const refreshed = await tryRefreshToken();
         if (refreshed) {
+          // Update headers with new token
+          const newAccessToken = getAccessToken();
+          if (newAccessToken) {
+            headers['Authorization'] = `Bearer ${newAccessToken}`;
+          }
+
           // Retry the original request
           const retryResponse = await fetch(`${API_URL}${endpoint}`, {
             ...options,
             headers,
-            credentials: 'include',
           });
           if (retryResponse.ok) {
             return retryResponse.json();
@@ -91,8 +145,8 @@ export const authAPI = {
     const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include', // Important: include cookies
       body: JSON.stringify({ email, password }),
+      credentials: 'include', // Send/receive cookies
     });
 
     if (!response.ok) {
@@ -107,6 +161,11 @@ export const authAPI = {
       return { requires2FA: true, tempToken: data.tempToken };
     }
 
+    // Store tokens
+    if (data.accessToken && data.refreshToken) {
+      setTokens(data.accessToken, data.refreshToken);
+    }
+
     return { success: true };
   },
 
@@ -114,8 +173,8 @@ export const authAPI = {
     const response = await fetch(`${API_URL}/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({ name, email, password }),
+      credentials: 'include', // Send/receive cookies
     });
 
     if (!response.ok) {
@@ -123,17 +182,37 @@ export const authAPI = {
       throw new Error(error.message || 'Signup failed');
     }
 
-    return response.json();
+    const data = await response.json();
+
+    // Store tokens
+    if (data.accessToken && data.refreshToken) {
+      setTokens(data.accessToken, data.refreshToken);
+    }
+
+    return data;
   },
 
   logout: async () => {
     try {
-      await fetch(`${API_URL}/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+      const accessToken = getAccessToken();
+      const refreshToken = getRefreshToken();
+
+      if (accessToken && refreshToken) {
+        await fetch(`${API_URL}/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ refreshToken }),
+          credentials: 'include', // Send cookies
+        });
+      }
+
+      clearTokens();
     } catch (error) {
       console.error('Logout error:', error);
+      clearTokens();
     } finally {
       window.location.href = '/login';
     }
@@ -147,8 +226,8 @@ export const authAPI = {
     const response = await fetch(`${API_URL}/auth/verify-2fa`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({ email, token }),
+      credentials: 'include', // Send/receive cookies
     });
 
     if (!response.ok) {
@@ -156,13 +235,26 @@ export const authAPI = {
       throw new Error(error.message || '2FA verification failed');
     }
 
-    return response.json();
+    const data = await response.json();
+
+    // Store tokens
+    if (data.accessToken && data.refreshToken) {
+      setTokens(data.accessToken, data.refreshToken);
+    }
+
+    return data;
   },
 
   checkStatus: async () => {
     try {
+      const accessToken = getAccessToken();
+      if (!accessToken) return false;
+
       const response = await fetch(`${API_URL}/auth/status`, {
-        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        credentials: 'include', // Send cookies
       });
       return response.ok;
     } catch (error) {
@@ -282,10 +374,17 @@ export const blogAPI = {
     const formData = new FormData();
     formData.append('image', file);
 
+    const accessToken = getAccessToken();
+    const headers: { [key: string]: string } = {};
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+
     const response = await fetch(`${API_URL}/blog/upload-image`, {
       method: 'POST',
-      credentials: 'include', // Use cookie-based auth
+      headers,
       body: formData,
+      credentials: 'include', // Send cookies
     });
 
     if (!response.ok) {
@@ -345,10 +444,17 @@ export const userAPI = {
     const formData = new FormData();
     formData.append('file', file);
 
+    const accessToken = getAccessToken();
+    const headers: { [key: string]: string } = {};
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+
     const response = await fetch(`${API_URL}/user/avatar`, {
       method: 'POST',
-      credentials: 'include', // Use cookie-based auth
+      headers,
       body: formData,
+      credentials: 'include', // Send cookies
     });
 
     if (!response.ok) {
@@ -523,10 +629,17 @@ export const documentsAPI = {
     const formData = new FormData();
     formData.append('file', file);
 
+    const accessToken = getAccessToken();
+    const headers: { [key: string]: string } = {};
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+
     const response = await fetch(`${API_URL}/documents/upload`, {
       method: 'POST',
-      credentials: 'include', // Use cookie-based auth
+      headers,
       body: formData,
+      credentials: 'include', // Send cookies
     });
 
     if (!response.ok) {
@@ -607,10 +720,17 @@ export const mediaAPI = {
     const formData = new FormData();
     formData.append('file', file);
 
+    const accessToken = getAccessToken();
+    const headers: { [key: string]: string } = {};
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+
     const response = await fetch(`${API_URL}/media/upload`, {
       method: 'POST',
-      credentials: 'include', // Use cookie-based auth
+      headers,
       body: formData,
+      credentials: 'include', // Send cookies
     });
 
     if (!response.ok) {

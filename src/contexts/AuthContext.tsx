@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { authAPI, userAPI } from '../lib/api';
+import { authAPI, userAPI, clearTokens } from '../lib/api';
 
 interface User {
   _id: string;
@@ -84,6 +84,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     await authAPI.logout();
+    clearTokens();
     setUser(null);
   };
 
