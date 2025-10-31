@@ -99,6 +99,9 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
   const accessToken = getAccessToken();
   if (accessToken) {
     headers['Authorization'] = `Bearer ${accessToken}`;
+    console.log(`[API Request] ${endpoint} - Token present, length: ${accessToken.length}`); // Debug
+  } else {
+    console.warn(`[API Request] ${endpoint} - No access token found in localStorage`); // Debug
   }
 
   const response = await fetch(`${API_URL}${endpoint}`, {
