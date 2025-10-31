@@ -54,6 +54,12 @@ export default function SignupPage() {
         throw new Error(data.message || 'Signup failed');
       }
 
+      // Store tokens in localStorage for header-based auth
+      if (data.accessToken && data.refreshToken) {
+        localStorage.setItem('accessToken', data.accessToken);
+        localStorage.setItem('refreshToken', data.refreshToken);
+      }
+
       // Authentication successful (cookies are set by the server)
       // Redirect to dashboard
       router.push('/dashboard');
