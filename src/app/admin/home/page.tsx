@@ -223,7 +223,7 @@ export default function AdminHomePage() {
     { icon: ShoppingBag, label: "Projects", value: stats.projects.toString(), color: "#8B7BE8" },
     { icon: FileText, label: "Research", value: stats.documents.toString(), color: "#FFB547" },
     { icon: Rocket, label: "Deploy", value: stats.tasks.toString(), color: "#FF6B6B" },
-    { icon: Users, label: "Employees", value: stats.teams.toString(), color: "#4ECDC4" },
+    { icon: Users, label: "Employees", value: stats.totalUsers.toString(), color: "#4ECDC4" },
   ];
 
   if (loading) {

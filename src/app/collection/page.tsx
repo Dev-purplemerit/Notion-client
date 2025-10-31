@@ -5,6 +5,15 @@ import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/AppLayout';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input as UiInput } from '@/components/ui/input';
 import { Search, Folder, MoreVertical, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { collectionsAPI } from '@/lib/api';
@@ -28,6 +37,8 @@ export default function CollectionPage() {
   const [recentDrafts, setRecentDrafts] = useState<Collection[]>([]);
   const [savedCollections, setSavedCollections] = useState<Collection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState<string | null>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   useEffect(() => {
     loadCollections();
@@ -77,6 +88,38 @@ export default function CollectionPage() {
   const filteredCollections = savedCollections.filter(collection =>
     collection.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Helper for image upload to base64
+  const handleThumbnailChange = async (e: React.ChangeEvent<HTMLInputElement>, collection: Collection) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingId(collection._id);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
+      try {
+        await collectionsAPI.update(collection._id, { thumbnail: base64 });
+        toast({ title: 'Thumbnail updated!' });
+        loadCollections();
+      } catch (err) {
+        toast({ title: 'Error', description: 'Failed to update thumbnail', variant: 'destructive' });
+      } finally {
+        setUploadingId(null);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDeleteCollection = async (id: string) => {
+    try {
+      await collectionsAPI.delete(id);
+      toast({ title: 'Collection deleted!' });
+      setDeleteDialogOpen(null);
+      loadCollections();
+    } catch (err) {
+      toast({ title: 'Error', description: 'Failed to delete collection', variant: 'destructive' });
+    }
+  };
 
   return (
     <AppLayout>
@@ -193,7 +236,6 @@ export default function CollectionPage() {
                     borderRadius: '16px',
                     flexShrink: 0
                   }}
-                  onClick={() => router.push(`/collection/editor?id=${collection._id}`)}
                 >
                   <div 
                     className="relative h-40"
@@ -204,18 +246,51 @@ export default function CollectionPage() {
                       backgroundRepeat: 'no-repeat',
                       backgroundColor: '#D9D9D9'
                     }}
+                    onClick={() => router.push(`/collection/editor?id=${collection._id}`)}
                   >
-                    <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white">
-                      <MoreVertical className="h-4 w-4 text-gray-700" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white" onClick={e => e.stopPropagation()}>
+                          <MoreVertical className="h-4 w-4 text-gray-700" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                          <label className="w-full cursor-pointer flex items-center">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={e => handleThumbnailChange(e, collection)}
+                              disabled={uploadingId === collection._id}
+                            />
+                            <span className="w-full">{uploadingId === collection._id ? 'Uploading...' : 'Insert Thumbnail'}</span>
+                          </label>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => setDeleteDialogOpen(collection._id)} className="text-red-600 focus:text-red-700">Delete Collection</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                  <CardContent className="p-4">
+                  <CardContent className="p-4" onClick={() => router.push(`/collection/editor?id=${collection._id}`)}>
                     <p className="text-sm font-medium text-gray-800 mb-2 truncate">{collection.name}</p>
                     <div className="flex items-center justify-between text-xs text-gray-500">
                       <span>{calculateSize(collection)}</span>
                       <span>{formatDate(collection.updatedAt)}</span>
                     </div>
                   </CardContent>
+                  <Dialog open={deleteDialogOpen === collection._id} onOpenChange={open => setDeleteDialogOpen(open ? collection._id : null)}>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Delete Collection?</DialogTitle>
+                      </DialogHeader>
+                      <div>Are you sure you want to delete <b>{collection.name}</b>? This action cannot be undone.</div>
+                      <DialogFooter>
+                        <Button variant="secondary" onClick={() => setDeleteDialogOpen(null)}>Cancel</Button>
+                        <Button variant="destructive" onClick={() => handleDeleteCollection(collection._id)}>Delete</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 </Card>
               ))}
             </div>

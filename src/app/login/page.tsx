@@ -62,12 +62,8 @@ export default function LoginPage() {
 
       // Store tokens in localStorage for header-based auth
       if (data.accessToken && data.refreshToken) {
-        console.log('Storing tokens in localStorage'); // Debug log
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
-        console.log('Tokens stored, accessToken length:', data.accessToken.length); // Debug log
-      } else {
-        console.warn('No tokens received from backend:', data); // Debug warning
       }
 
       // Authentication successful (cookies are set by the server)

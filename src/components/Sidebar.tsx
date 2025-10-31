@@ -514,7 +514,7 @@ export const Sidebar = ({ currentView, onViewChange }: SidebarProps) => {
             item.id === "settings" ? (
               <div
                 key={item.id}
-                className={`flex items-center text-gray-800 ${pathname === '/settings' ? '' : 'hover:bg-black/5 rounded-[20px]'}`}
+                className={`flex items-center text-gray-800 ${pathname === '/settings' ? '' : 'hover:bg-black/5 rounded-[20px]'} justify-between`}
                 style={
                   pathname === '/settings'
                     ? {
@@ -524,14 +524,14 @@ export const Sidebar = ({ currentView, onViewChange }: SidebarProps) => {
                         borderRadius: '32px',
                         background: '#AEA1E4',
                         boxShadow: 'inset 0 2px 3px 0 rgba(110, 76, 181, 0.38)',
-                        justifyContent: isCollapsed ? 'center' : 'flex-start',
+                        justifyContent: isCollapsed ? 'center' : 'space-between',
                       }
                     : {
                         width: isCollapsed ? '48px' : '292px',
                         height: '48px',
                         padding: '10px',
                         borderRadius: '20px',
-                        justifyContent: isCollapsed ? 'center' : 'flex-start',
+                        justifyContent: isCollapsed ? 'center' : 'space-between',
                       }
                 }
               >
@@ -549,8 +549,8 @@ export const Sidebar = ({ currentView, onViewChange }: SidebarProps) => {
                   {!isCollapsed && <span className="text-left">{item.label}</span>}
                 </Button>
                 {!isCollapsed && (
-                  <div className="ml-auto flex items-center">
-                    <svg width="93" height="51" viewBox="0 0 93 51" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <div className="flex items-center ml-auto">
+                    <svg width="60" height="32" viewBox="0 0 93 51" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <g filter="url(#filter0_d_3471_15893)">
                         <rect x="6" y="4" width="80.99" height="38.9935" rx="19.4967" fill="white"/>
                         <rect x="10" y="8" width="32" height="30.9935" rx="15.4967" fill="#5865F2"/>
